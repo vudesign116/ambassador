@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Timestamp Format</title>
+</head>
+<body>
+    <h2>Test Timestamp Format (Google Apps Script Helper)</h2>
+    <div id="results"></div>
+
+    <script>
+        // Simulate the formatLocalISOString function from Apps Script
+        function formatLocalISOString(inputTimestamp) {
+            var date = inputTimestamp ? new Date(String(inputTimestamp).replace('Z', '')) : new Date();
+            // Adjust to UTC+7 (Vietnam)
+            date.setHours(date.getHours() + 7);
+
+            var year = date.getFullYear();
+            var month = String(date.getMonth() + 1).padStart(2, '0');
+            var day = String(date.getDate()).padStart(2, '0');
+            var hours = String(date.getHours()).padStart(2, '0');
+            var minutes = String(date.getMinutes()).padStart(2, '0');
+            var seconds = String(date.getSeconds()).padStart(2, '0');
+            var ms = String(date.getMilliseconds()).padStart(3, '0');
+
+            return year + '-' + month + '-' + day + 'T' + hours + ':' + minutes + ':' + seconds + '.' + ms;
+        }
+
+        // Test cases
+        const testCases = [
+            {
+                input: "2025-10-17T08:30:15.123Z", 
+                description: "Timestamp với Z"
+            },
+            {
+                input: "2025-10-17T08:30:15.123", 
+                description: "Timestamp không có Z"
+            },
+            {
+                input: null, 
+                description: "Current time (no input)"
+            },
+            {
+                input: "2025-12-25T00:00:00.000Z", 
+                description: "Christmas timestamp với Z"
+            }
+        ];
+
+        let resultsHtml = '<h3>Test Results:</h3>';
+        
+        testCases.forEach((testCase, index) => {
+            const result = formatLocalISOString(testCase.input);
+            const originalISO = testCase.input ? new Date(testCase.input).toISOString() : new Date().toISOString();
+            
+            resultsHtml += `
+                <div style="border: 1px solid #ddd; margin: 10px 0; padding: 10px;">
+                    <h4>Test ${index + 1}: ${testCase.description}</h4>
+                    <p><strong>Input:</strong> ${testCase.input || 'null (current time)'}</p>
+                    <p><strong>Original ISO:</strong> ${originalISO}</p>
+                    <p><strong>formatLocalISOString():</strong> <span style="background: #e8f5e8; padding: 2px 4px; font-family: monospace;">${result}</span></p>
+                    <p><strong>✅ No trailing Z:</strong> ${result.endsWith('Z') ? '❌ Still has Z!' : '✅ Clean format'}</p>
+                    <p><strong>✅ Has milliseconds:</strong> ${result.includes('.') ? '✅ Includes .SSS' : '❌ Missing milliseconds'}</p>
+                </div>
+            `;
+        });
+
+        document.getElementById('results').innerHTML = resultsHtml;
+
+        // Test specific scenarios mentioned by user
+        console.log('=== TIMESTAMP FORMAT TESTS ===');
+        console.log('Input with Z:', '2025-10-09T08:41:35.773Z');
+        console.log('Output format:', formatLocalISOString('2025-10-09T08:41:35.773Z'));
+        console.log('Expected format: 2025-10-09T15:41:35.773 (UTC+7, no Z)');
+    </script>
+</body>
+</html>

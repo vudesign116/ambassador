@@ -1,4 +1,18 @@
 node_modules
 
+# Environment variables (DO NOT COMMIT)
+.env
+.env.local
+.env.production
+.env.development
+
+# Firebase credentials (DO NOT COMMIT)
+firebase-service-account.json
+.firebaserc
+
+# Build output
+build/
+dist/
+
 # Local Netlify folder
 .netlify

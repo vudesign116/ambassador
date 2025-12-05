@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Admin Password Hash</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Generate Admin Password Hash</h1>
+        <p>Enter a password to generate its SHA-256 hash for admin login.</p>
+        
+        <label for="password"><strong>Password:</strong></label>
+        <input type="password" id="password" placeholder="Enter password">
+        
+        <button onclick="generateHash()">Generate Hash</button>
+        
+        <div id="result" class="result" style="display: none;">
+            <strong>Generated Hash:</strong><br>
+            <span id="hashOutput"></span>
+        </div>
+        
+        <div class="note">
+            <strong>⚠️ Important:</strong>
+            <ul style="margin: 10px 0;">
+                <li>Copy the generated hash</li>
+                <li>Update <code>ADMIN_PASSWORD_HASH</code> in <code>AdminLoginPage.js</code></li>
+                <li>Never commit plain text passwords to the repository</li>
+                <li>Keep this tool file secure or delete it after use</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function generateHash() {
+            const password = document.getElementById('password').value;
+            
+            if (!password) {
+                alert('Please enter a password');
+                return;
+            }
+            
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password + 'MAmbassador_Salt_2024');
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                
+                document.getElementById('hashOutput').textContent = hashHex;
+                document.getElementById('result').style.display = 'block';
+                
+                console.log('Password Hash:', hashHex);
+            } catch (error) {
+                alert('Error generating hash: ' + error.message);
+            }
+        }
+        
+        // Allow Enter key to generate hash
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateHash();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,22 +1,381 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, List, Button, Dropdown, Modal, Spin, Typography, Space, Badge, Empty } from 'antd';
+import { HomeOutlined, AppstoreOutlined, MenuOutlined, HistoryOutlined, GiftOutlined, LogoutOutlined, PlayCircleOutlined, RightOutlined } from '@ant-design/icons';
 import UserBadge from '../components/UserBadge';
 import RadarChart from '../components/RadarChart';
 import CelebrationAnimation from '../components/CelebrationAnimation';
+import NotificationPopup from '../components/NotificationPopup';
+import SurveyModal from '../components/SurveyModal';
+import { useActiveSurveys } from '../hooks/useSurvey';
+import ambassadorLogo from '../images/MAmbassador-logo.png';
 import iconHospital from '../images/icon-hospital.png';
 import iconInfo from '../images/icon-info.png';
 import iconDna from '../images/icon-dna.png';
 import iconBook from '../images/icon-book.png';
 import iconBrain from '../images/icon-brain.png';
 import iconTips from '../images/icon-tips.png';
+import * as PointsManager from '../utils/pointsManager';
+import { googleSheetsService } from '../services/googleSheetsService';
+
+const { Text, Title } = Typography;
 
 
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
   const [playDialogOpen, setPlayDialogOpen] = useState(false);
-  const [userScore, setUserScore] = useState(520); // Make this state for demo
+  const [userScore, setUserScore] = useState(0); // Will be fetched from API
+  const [categoryStats, setCategoryStats] = useState([]); // Category-wise points
+  const [dailyTasks, setDailyTasks] = useState([]); // Tasks with dynamic points from API
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'minigame'
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const userName = localStorage.getItem('userName') || 'Phạm Thị Hương';
-  const lastUpdated = '08:00 08/03/2025';
+  const phoneNumber = localStorage.getItem('phoneNumber');
+  
+  // Survey functionality
+  const { activeSurveys, loading: surveysLoading } = useActiveSurveys(phoneNumber);
+  const [currentSurveyIndex, setCurrentSurveyIndex] = useState(0);
+  const [showSurvey, setShowSurvey] = useState(false);
+
+  // Show survey popup when active surveys are available
+  useEffect(() => {
+    if (!surveysLoading && activeSurveys.length > 0) {
+      // Delay to show after page load
+      const timer = setTimeout(() => {
+        setShowSurvey(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [surveysLoading, activeSurveys]);
+
+  const handleSurveyClose = () => {
+    setShowSurvey(false);
+    // Show next survey if available
+    if (currentSurveyIndex < activeSurveys.length - 1) {
+      setTimeout(() => {
+        setCurrentSurveyIndex(currentSurveyIndex + 1);
+        setShowSurvey(true);
+      }, 1000);
+    }
+  };
+  
+  // Mini games list - loaded from admin config
+  const [games, setGames] = useState([]);
+
+  // Load mini games from admin config
+  useEffect(() => {
+    const adminGames = localStorage.getItem('admin_minigames');
+    if (adminGames) {
+      setGames(JSON.parse(adminGames));
+    }
+  }, []);
+
+  // Listen for points update flag when user returns from document page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Page is visible again
+        const pointsUpdated = localStorage.getItem('points_updated');
+        if (pointsUpdated === 'true') {
+          console.log('🔄 Points updated, reloading dashboard...');
+          window.location.reload(); // Reload to fetch latest points
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Format date for display: "HH:mm DD/MM/YYYY"
+  const formatUpdateTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${hours}:${minutes} ${day}/${month}/${year}`;
+  };
+
+  // Fetch total points and calculate category stats from API
+  useEffect(() => {
+    const fetchTotalPoints = async () => {
+      setLoading(true);
+      try {
+        const phoneNumber = localStorage.getItem('phoneNumber');
+        const authToken = localStorage.getItem('authToken');
+        
+        if (!phoneNumber || !authToken) {
+          setLoading(false);
+          return;
+        }
+
+        // Clear the update flag if it exists
+        localStorage.removeItem('points_updated');
+
+        // Use centralized API service
+        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/nvbc_get_point/?phone=${phoneNumber}`;
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Save API points to manager (with contentlist to map type)
+          if (data && typeof data.point === 'number') {
+            const apiHistory = data.lich_su_diem || [];
+            const contentlist = data.contentlist || [];
+            PointsManager.saveAPIPoints(data.point, apiHistory, contentlist);
+            
+            // Mark API history documents as viewed
+            PointsManager.markAPIHistoryAsViewed(apiHistory);
+          }
+          
+          // Get total points (API + Session)
+          const totalPoints = PointsManager.getTotalPoints();
+          setUserScore(totalPoints);
+
+          // Calculate points by category from contentlist and lich_su_diem
+          if (data) {
+            const categoryPoints = {};
+            const categoryMaxPoints = {}; // Track max possible points per category
+            
+            // Initialize categories
+            const categoryMap = {
+              'THÔNG TIN VỀ MERAPLION': 'MerapLion',
+              'THÔNG TIN SẢN PHẦM': 'Sản phẩm',
+              'THÔNG TIN BỆNH HỌC': 'Bệnh học',
+              'SỔ TAY NGƯỜI THẦY THUỐC': 'Sổ tay thầy thuốc',
+              'TƯ VẤN CÙNG CHUYÊN GIA': 'Tư vấn chuyên gia',
+              'MINI_GAME': 'Mini Game'
+            };
+
+            // Initialize all categories with 0 points
+            Object.values(categoryMap).forEach(cat => {
+              categoryPoints[cat] = 0;
+              // Set default max points to 1 to avoid division by zero
+              categoryMaxPoints[cat] = 1;
+            });
+
+            // Create a map of document_id to category from contentlist
+            // AND calculate max points per category
+            const documentCategoryMap = {};
+            if (data.contentlist && Array.isArray(data.contentlist)) {
+              data.contentlist.forEach(content => {
+                const categoryName = categoryMap[content.category];
+                if (categoryName && content.subcategories && Array.isArray(content.subcategories)) {
+                  // Calculate total max points for this category
+                  let categoryTotal = 0;
+                  content.subcategories.forEach(doc => {
+                    if (doc.document_id) {
+                      documentCategoryMap[doc.document_id] = content.category;
+                      categoryTotal += (doc.point || 0);
+                    }
+                  });
+                  categoryMaxPoints[categoryName] = categoryTotal;
+                }
+              });
+            }
+
+            // Count points from API history using document_id to find category
+            if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
+              data.lich_su_diem.forEach(item => {
+                const category = documentCategoryMap[item.document_id];
+                if (category) {
+                  const categoryName = categoryMap[category];
+                  if (categoryName) {
+                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (item.point || 0);
+                  }
+                }
+              });
+            }
+
+            // Also count points from session (earned points)
+            const earnedPoints = PointsManager.getEarnedPoints();
+            earnedPoints.forEach(item => {
+              // Get category from earned point item
+              if (item.category) {
+                const categoryName = categoryMap[item.category];
+                if (categoryName) {
+                  categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (item.point || 0);
+                }
+              } else if (item.document_id) {
+                // Fallback: try to find category from document_id
+                const category = documentCategoryMap[item.document_id];
+                if (category) {
+                  const categoryName = categoryMap[category];
+                  if (categoryName) {
+                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (item.point || 0);
+                  }
+                }
+              }
+            });
+
+            // Convert to array format for RadarChart with maxPoints
+            const stats = Object.keys(categoryPoints).map(name => ({
+              name,
+              value: categoryPoints[name],
+              maxPoints: categoryMaxPoints[name] || 1 // Avoid division by zero
+            }));
+
+            // Ensure Mini Game always appears in radar chart (even with 0 points)
+            const allCategories = Object.values(categoryMap);
+            allCategories.forEach(categoryName => {
+              if (!stats.find(s => s.name === categoryName)) {
+                stats.push({
+                  name: categoryName,
+                  value: 0,
+                  maxPoints: categoryMaxPoints[categoryName] || 1
+                });
+              }
+            });
+
+            setCategoryStats(stats);
+
+            // Get last update time from most recent point history
+            const combinedHistory = PointsManager.getCombinedHistory();
+            if (combinedHistory.length > 0) {
+              // History is already sorted by newest first
+              const latestTime = combinedHistory[0].inserted_at;
+              setLastUpdated(formatUpdateTime(latestTime));
+            } else {
+              // No history yet, use current time
+              setLastUpdated(formatUpdateTime(new Date().toISOString()));
+            }
+
+            // Build daily tasks with point ranges from contentlist
+            if (data.contentlist && Array.isArray(data.contentlist)) {
+              const tasks = [
+                {
+                  title: 'Mini Game',
+                  apiCategory: 'MINI_GAME',
+                  icon: iconTips,
+                  category: 'mini-game',
+                  isComingSoon: true // Flag for upcoming feature
+                },
+                {
+                  title: 'Thông tin sản phẩm',
+                  apiCategory: 'THÔNG TIN SẢN PHẦM',
+                  icon: iconHospital,
+                  category: 'thong-tin-san-pham'
+                },
+                {
+                  title: 'Thông tin về MerapLion',
+                  apiCategory: 'THÔNG TIN VỀ MERAPLION',
+                  icon: iconInfo,
+                  category: 'thong-tin-ve-meraplion'
+                },
+                {
+                  title: 'Thông tin bệnh học',
+                  apiCategory: 'THÔNG TIN BỆNH HỌC',
+                  icon: iconDna,
+                  category: 'thong-tin-benh-hoc'
+                },
+                {
+                  title: 'Sổ tay người thầy thuốc',
+                  apiCategory: 'SỔ TAY NGƯỜI THẦY THUỐC',
+                  icon: iconBook,
+                  category: 'so-tay-nguoi-thay-thuoc'
+                },
+                {
+                  title: 'Tư vấn cùng chuyên gia',
+                  apiCategory: 'TƯ VẤN CÙNG CHUYÊN GIA',
+                  icon: iconBrain,
+                  category: 'tu-van-cung-chuyen-gia'
+                }
+              ];
+
+              const tasksWithPoints = tasks.map(task => {
+                // Special handling for Mini Game (coming soon)
+                if (task.isComingSoon) {
+                  return {
+                    title: task.title,
+                    points: 'Sắp diễn ra',
+                    icon: task.icon,
+                    completed: false,
+                    category: task.category,
+                    isComingSoon: true
+                  };
+                }
+
+                const categoryData = data.contentlist.find(item => item.category === task.apiCategory);
+                let pointRange = '0 điểm';
+
+                if (categoryData && categoryData.subcategories && Array.isArray(categoryData.subcategories)) {
+                  const points = categoryData.subcategories.map(doc => doc.point || 0);
+                  if (points.length > 0) {
+                    const minPoint = Math.min(...points);
+                    const maxPoint = Math.max(...points);
+                    pointRange = minPoint === maxPoint ? `${minPoint} điểm` : `${minPoint}-${maxPoint} điểm`;
+                  }
+                }
+
+                return {
+                  title: task.title,
+                  points: pointRange,
+                  icon: task.icon,
+                  completed: false,
+                  category: task.category
+                };
+              });
+
+              setDailyTasks(tasksWithPoints);
+            } else {
+              // Fallback to default tasks
+              setDailyTasks([
+                { title: 'Thông tin sản phẩm', points: '1-2 điểm', icon: iconHospital, completed: false, category: 'thong-tin-san-pham' },
+                { title: 'Thông tin về MerapLion', points: '2 điểm', icon: iconInfo, completed: false, category: 'thong-tin-ve-meraplion' },
+                { title: 'Thông tin bệnh học', points: '1 điểm', icon: iconDna, completed: false, category: 'thong-tin-benh-hoc' },
+                { title: 'Sổ tay người thầy thuốc', points: '1 điểm', icon: iconBook, completed: false, category: 'so-tay-nguoi-thay-thuoc' },
+                { title: 'Tư vấn cùng chuyên gia', points: '1 điểm', icon: iconBrain, completed: false, category: 'tu-van-cung-chuyen-gia' },
+                { title: 'Mini Game', points: 'Sắp diễn ra', icon: iconTips, completed: false, category: 'mini-game', isComingSoon: true }
+              ]);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching total points:', err);
+        // Set default tasks on error
+        setDailyTasks([
+          { title: 'Mini Game', points: 'Sắp diễn ra', icon: iconTips, completed: false, category: 'mini-game', isComingSoon: true },
+          { title: 'Thông tin sản phẩm', points: '1-2 điểm', icon: iconHospital, completed: false, category: 'thong-tin-san-pham' },
+          { title: 'Thông tin về MerapLion', points: '2 điểm', icon: iconInfo, completed: false, category: 'thong-tin-ve-meraplion' },
+          { title: 'Thông tin bệnh học', points: '1 điểm', icon: iconDna, completed: false, category: 'thong-tin-benh-hoc' },
+          { title: 'Sổ tay người thầy thuốc', points: '1 điểm', icon: iconBook, completed: false, category: 'so-tay-nguoi-thay-thuoc' },
+          { title: 'Tư vấn cùng chuyên gia', points: '1 điểm', icon: iconBrain, completed: false, category: 'tu-van-cung-chuyen-gia' }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTotalPoints();
+  }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuOpen && !event.target.closest('.menu-container')) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [menuOpen]);
 
   // Function to get current date and time in Vietnamese format
   const getCurrentDateTime = () => {
@@ -29,165 +388,417 @@ const DashboardPage = () => {
     return `${day}, ${date}/${month}/${year}`;
   };
 
-  // Demo function to test different badge levels
-  const cycleBadgeLevel = () => {
-    setShowCelebration(true); // Trigger celebration animation
-    if (userScore < 500) {
-      setUserScore(750); // Học Giả Trẻ
-    } else if (userScore < 1000) {
-      setUserScore(1500); // Nhà Nghiên Cứu
+  // Function to handle play button toggle
+  const handlePlayToggle = () => {
+    const newExpandedState = !isExpanded;
+    setIsExpanded(newExpandedState);
+    
+    if (newExpandedState) {
+      // Expanding - Scroll to bottom of page
+      setTimeout(() => {
+        // Scroll to the very bottom of the document
+        const scrollHeight = document.documentElement.scrollHeight;
+        const windowHeight = window.innerHeight;
+        const bottomNavHeight = 80; // Height of bottom navigation
+        
+        window.scrollTo({ 
+          top: scrollHeight - windowHeight + bottomNavHeight, 
+          behavior: 'smooth' 
+        });
+      }, 100);
     } else {
-      setUserScore(250); // Tân Binh
+      // Collapsing - Scroll back to top
+      window.scrollTo({ 
+        top: 0, 
+        behavior: 'smooth' 
+      });
     }
   };
 
-  const dailyTasks = [
-    { title: 'Thông tin sản phẩm', points: '1-2 điểm', icon: iconHospital, completed: false },
-    { title: 'Thông tin về MerapLion', points: '2 điểm', icon: iconInfo, completed: false },
-    { title: 'Thông tin bệnh học', points: '1 điểm', icon: iconDna, completed: false },
-    { title: 'Số tay người thầy thuốc', points: '1 điểm', icon: iconBook, completed: false },
-    { title: 'Tư vấn cũng chuyên gia', points: '1 điểm', icon: iconBrain, completed: false },
+  // Demo function to test different badge levels (cycle through all 5 badges)
+  const cycleBadgeLevel = () => {
+    setShowCelebration(true); // Trigger celebration animation
+    if (userScore < 500) {
+      setUserScore(750); // Học Giả Trẻ (501-1000)
+    } else if (userScore < 1000) {
+      setUserScore(1500); // Nhà Nghiên Cứu (1001-2000)
+    } else if (userScore < 2000) {
+      setUserScore(2500); // Chuyên Gia (2001-3000) ⭐ NEW
+    } else if (userScore < 3000) {
+      setUserScore(3500); // Bậc Thầy Tri Thức (3001+) ⭐ NEW
+    } else {
+      setUserScore(250); // Reset về Tân Binh (0-500)
+    }
+  };
+
+  // Handle task item click
+  const handleTaskClick = (task) => {
+    // Special handling for Mini Game
+    if (task.category === 'mini-game') {
+      if (!task.isComingSoon) {
+        // When Mini Game is available, open the play dialog
+        setPlayDialogOpen(true);
+        // Scroll to ensure user sees the dialog
+        setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+      }
+      // If coming soon, do nothing (already disabled in UI)
+      return;
+    }
+    
+    // For other categories, navigate to documents page
+    navigate(`/documents/${task.category}`);
+  };
+
+  // Handle mini game click
+  const handleGameClick = (game) => {
+    if (game.available && game.url) {
+      window.open(game.url, '_blank', 'noopener,noreferrer');
+      console.log('Opening game:', game.title, game.url);
+    }
+  };
+
+  // Handle menu actions
+  const handleGiftList = () => {
+    navigate('/introduction');
+  };
+
+  const handleScoringRules = () => {
+    navigate('/scoring-rules');
+  };
+
+  const handleLogout = () => {
+    // 🚀 Track logout to Google Sheets trong BACKGROUND (không chờ response)
+    googleSheetsService.trackLogout({
+      timestamp: new Date().toISOString()
+    }).catch(err => console.warn('Failed to track logout:', err));
+    
+    // Clear user data (GIỮ LẠI phoneNumber để auto-fill khi login lại)
+    PointsManager.resetAllPoints();
+    // localStorage.removeItem('phoneNumber'); // ❌ KHÔNG XÓA - để tự động điền lại
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('ma_kh_dms');
+    localStorage.removeItem('rewardStatus');
+    
+    // Navigate to login NGAY LẬP TỨC
+    navigate('/login');
+  };
+
+  const menuItems = [
+    {
+      key: 'reward-selection',
+      icon: <GiftOutlined />,
+      label: 'Xem Giải Thưởng',
+      onClick: () => navigate('/reward-selection'),
+      style: { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', fontWeight: '500' }
+    },
+    {
+      key: 'scoring-rules',
+      icon: <HistoryOutlined />,
+      label: 'Cách tính điểm',
+      onClick: handleScoringRules,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Đăng xuất',
+      onClick: handleLogout,
+      danger: true,
+    },
   ];
 
   return (
     <div className="full-height" style={{ paddingBottom: '80px' }}>
+      <NotificationPopup />
       <div className="header-gradient" style={{ borderRadius: '0 0 24px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-          <div className="logo-circle logo-small" style={{ marginRight: '16px', marginBottom: 0 }}>
-            U
-          </div>
-          <div>
-            <p className="text-secondary" style={{ margin: 0, color: 'rgba(255,255,255,0.8)', fontSize: '14px', fontWeight: '600' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', position: 'relative' }}>
+          <img src={ambassadorLogo} alt="M.Ambassador Logo" className="dashboard-logo" style={{ width: '60px', marginBottom: 0 }} />
+          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+            <p className="text-secondary" style={{ margin: 0, color: 'rgba(255,255,255,0.8)', fontSize: '14px', fontWeight: '600', whiteSpace: 'nowrap' }}>
               Xin Chào, {userName}
             </p>
-            <p className="text-secondary" style={{ margin: 0, color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: '500' }}>
+            <p className="text-secondary" style={{ margin: 0, color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
               {getCurrentDateTime()}
             </p>
           </div>
-          <div style={{ marginLeft: 'auto' }}>
-            <button 
-              className="btn-link" 
-              style={{ color: 'white', fontSize: '10px', opacity: 0.8 }}
-              onClick={cycleBadgeLevel}
-            >
-              Demo Badge
-            </button>
-          </div>
+          <Dropdown
+            menu={{ items: menuItems }}
+            trigger={['click']}
+            placement="bottomRight"
+          >
+            <Button 
+              type="text" 
+              icon={<MenuOutlined />}
+              style={{ 
+                color: 'white', 
+                fontSize: '20px',
+                marginLeft: 'auto'
+              }}
+            />
+          </Dropdown>
         </div>
       </div>
 
-      <div className="container">
-        <div className="card card-elevated score-display" style={{ padding: '20px', marginBottom: '16px', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
-            <button className="btn-link" style={{ color: 'var(--primary-color)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase' }}>
-              Lịch sử điểm
-            </button>
-          </div>
-
-          <UserBadge score={userScore} />
-
-          <h3 className="title-3" style={{ fontSize: '16px', marginTop: '8px', marginBottom: '8px', textAlign: 'center' }}>TỔNG QUAN HOẠT ĐỘNG</h3>
-
-          <p className="text-secondary" style={{ marginBottom: '16px', marginTop: '8px', fontSize: '13px', fontWeight: '600' }}>
-            Cập nhật {lastUpdated}
-          </p>
-
-          <RadarChart userScore={userScore} />
-        </div>
-
-        <div className="card">
-          <h3 className="title-3" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            MẸO TĂNG ĐIỂM
-            <img src={iconTips} alt="Tips" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
-          </h3>
-          <p className="text-secondary" style={{ marginBottom: '16px', fontSize: '13px', fontWeight: '600' }}>
-            Điểm tổng hợp từ việc xem tài liệu, video và mức độ tích cực của bạn mỗi ngày
-          </p>
-
-          <div className="space-y-4">
-            {dailyTasks.map((task, index) => (
-              <div key={index} className="list-item">
-                <div className="list-item-icon">
-                  <img src={task.icon} alt={task.title} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                </div>
-                <div className="list-item-content">
-                  <div className="list-item-title">{task.title}</div>
-                  <div className="list-item-subtitle">{task.points}</div>
-                </div>
-                <button className="btn btn-primary" style={{ padding: '8px 12px', minHeight: 'auto' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
+      {/* Overview Tab Content */}
+      {activeTab === 'overview' && (
+        <>
+          <div className="container">
+            <div className="card card-elevated score-display" style={{ padding: '20px', marginBottom: '16px', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
+                <button 
+                  className="btn-link" 
+                  style={{ color: 'var(--primary-color)', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase' }}
+                  onClick={() => navigate('/point-history')}
+                >
+                  Lịch sử điểm
                 </button>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      <button className="fab" onClick={() => setPlayDialogOpen(true)}>
-        ▶️
-      </button>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <Spin size="large" />
+                  <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>
+                    Đang tải điểm...
+                  </Text>
+                </div>
+              ) : (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <UserBadge score={userScore} />
+
+                  <Title level={4} style={{ textAlign: 'center', margin: 0 }}>
+                    TỔNG QUAN HOẠT ĐỘNG
+                  </Title>
+
+                  <Text type="secondary" style={{ textAlign: 'center', display: 'block', fontSize: 13 }}>
+                    Cập nhật {lastUpdated}
+                  </Text>
+
+                  <RadarChart userScore={userScore} categoryStats={categoryStats} />
+                </Space>
+              )}
+            </div>
+
+            <Card title={
+              <Space>
+                <span>MẸO TĂNG ĐIỂM</span>
+                <img src={iconTips} alt="Tips" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+              </Space>
+            }>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
+                Điểm tổng hợp từ việc xem tài liệu, video và mức độ tích cực của bạn mỗi ngày
+              </Text>
+
+              <List
+                dataSource={dailyTasks}
+                renderItem={(task) => (
+                  <List.Item
+                    onClick={task.isComingSoon ? undefined : () => handleTaskClick(task)}
+                    style={{ 
+                      cursor: task.isComingSoon ? 'not-allowed' : 'pointer', 
+                      padding: '12px 0',
+                      opacity: task.isComingSoon ? 0.6 : 1
+                    }}
+                    extra={
+                      <Button 
+                        type="primary" 
+                        shape="circle" 
+                        icon={<RightOutlined />}
+                        size="small"
+                        disabled={task.isComingSoon}
+                        style={{
+                          background: task.isComingSoon ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          border: 'none'
+                        }}
+                      />
+                    }
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        <img src={task.icon} alt={task.title} style={{ width: '32px', height: '32px', objectFit: 'contain', opacity: task.isComingSoon ? 0.5 : 1 }} />
+                      }
+                      title={<Text strong style={{ color: task.isComingSoon ? '#999' : 'inherit' }}>{task.title}</Text>}
+                      description={
+                        <Badge 
+                          count={task.points} 
+                          style={{ 
+                            backgroundColor: task.isComingSoon ? '#faad14' : '#52c41a' 
+                          }} 
+                        />
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+          </div>
+
+          <button className="fab" onClick={() => setPlayDialogOpen(true)}>
+            ▶️
+          </button>
+        </>
+      )}
+
+      {/* Mini Game Tab Content */}
+      {activeTab === 'minigame' && (
+        <div className="container" style={{ paddingTop: '20px', paddingBottom: '80px' }}>
+          {games.length === 0 ? (
+            <Card>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <Space direction="vertical" size="small">
+                    <Title level={5}>Hiện tại chưa có chương trình Mini Game dành cho bạn</Title>
+                    <Text type="secondary">Hãy quay lại sau!</Text>
+                  </Space>
+                }
+              />
+            </Card>
+          ) : (
+              <div className="games-grid">
+                {games.map((game) => (
+                  <div 
+                    key={game.id} 
+                    className={`game-card ${!game.available ? 'game-disabled' : ''}`}
+                    onClick={() => handleGameClick(game)}
+                  >
+                    <div className="game-thumbnail">
+                      <img src={game.thumbnail} alt={game.title} />
+                      {game.comingSoon && (
+                        <div className="coming-soon-badge">Coming Soon</div>
+                      )}
+                      {game.available && (
+                        <div className="play-overlay">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.3)" />
+                            <path d="M10 8.5L16 12L10 15.5V8.5Z" fill="white" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="game-info">
+                      <h4>{game.title}</h4>
+                      <p>{game.description}</p>
+                      <div className="game-action">
+                        <button 
+                          className={`play-button ${!game.available ? 'disabled' : ''}`}
+                          disabled={!game.available}
+                        >
+                          {game.comingSoon ? 'Coming Soon' : 'Chơi ngay'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+        </div>
+      )}
 
       <div className="bottom-nav">
-        <div className="nav-item nav-item-active">
-          <div className="nav-item-icon">👤</div>
+        <div 
+          className={`nav-item ${activeTab === 'overview' ? 'nav-item-active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          <div className="nav-item-icon"><HomeOutlined /></div>
           <div className="nav-item-label">TỔNG QUAN</div>
         </div>
-        <div className="nav-item">
-          <div className="nav-item-icon">🎮</div>
+        
+        <div className="play-button-center">
+          <button className="btn btn-primary btn-play-center" onClick={handlePlayToggle}>
+            {!isExpanded ? (
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" className="play-triangle">
+                <path d="M5 3v18l15-9z"/>
+              </svg>
+            ) : (
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" className="close-icon">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            )}
+          </button>
+        </div>
+        
+        {/* Mini Game tab */}
+        <div 
+          className={`nav-item ${activeTab === 'minigame' ? 'nav-item-active' : ''}`} 
+          onClick={() => setActiveTab('minigame')}
+        >
+          <div className="nav-item-icon"><AppstoreOutlined /></div>
           <div className="nav-item-label">MINI GAME</div>
         </div>
       </div>
 
-      {playDialogOpen && (
-        <div className="modal-overlay" onClick={() => setPlayDialogOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <button 
-                className="modal-close"
-                onClick={() => setPlayDialogOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              <h2 className="title-2 text-center" style={{ marginBottom: '24px' }}>
-                TĂNG ĐIỂM NGAY
-              </h2>
+      <Modal
+        title="TĂNG ĐIỂM NGAY"
+        open={playDialogOpen}
+        onCancel={() => setPlayDialogOpen(false)}
+        footer={null}
+        centered
+      >
+        <Text type="secondary" style={{ display: 'block', textAlign: 'center', marginBottom: 24, fontSize: 13 }}>
+          Điểm tổng hợp từ việc xem tài liệu, video và mức độ tích cực của bạn mỗi ngày
+        </Text>
 
-              <p className="text-center text-secondary" style={{ marginBottom: '32px', fontSize: '13px', fontWeight: '600' }}>
-                Điểm tổng hợp từ việc xem tài liệu, video và mức độ tích cực của bạn mỗi ngày
-              </p>
-
-              <div className="space-y-4">
-                {dailyTasks.map((task, index) => (
-                  <div key={index} className="list-item">
-                    <div className="list-item-icon">
-                      <img src={task.icon} alt={task.title} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                    </div>
-                    <div className="list-item-content">
-                      <div className="list-item-title">{task.title}</div>
-                      <div className="list-item-subtitle">{task.points}</div>
-                    </div>
-                    <button className="btn btn-primary" style={{ padding: '8px 12px', minHeight: 'auto' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M8 5v14l11-7z"/>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        <List
+          dataSource={dailyTasks}
+          renderItem={(task) => (
+            <List.Item
+              onClick={task.isComingSoon ? undefined : () => handleTaskClick(task)}
+              style={{ 
+                cursor: task.isComingSoon ? 'not-allowed' : 'pointer',
+                opacity: task.isComingSoon ? 0.6 : 1
+              }}
+              extra={
+                <Button 
+                  type="primary" 
+                  shape="circle" 
+                  icon={<PlayCircleOutlined />}
+                  disabled={task.isComingSoon}
+                  style={{
+                    background: task.isComingSoon ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    border: 'none'
+                  }}
+                />
+              }
+            >
+              <List.Item.Meta
+                avatar={
+                  <img src={task.icon} alt={task.title} style={{ width: '28px', height: '28px', objectFit: 'contain', opacity: task.isComingSoon ? 0.5 : 1 }} />
+                }
+                title={<span style={{ color: task.isComingSoon ? '#999' : 'inherit' }}>{task.title}</span>}
+                description={
+                  <Badge 
+                    count={task.points} 
+                    style={{ 
+                      backgroundColor: task.isComingSoon ? '#faad14' : '#52c41a' 
+                    }} 
+                  />
+                }
+              />
+            </List.Item>
+          )}
+        />
+      </Modal>
 
       <CelebrationAnimation
         isVisible={showCelebration}
         onComplete={() => setShowCelebration(false)}
       />
+
+      {/* Survey Modal */}
+      {!surveysLoading && activeSurveys.length > 0 && (
+        <SurveyModal
+          survey={activeSurveys[currentSurveyIndex]}
+          visible={showSurvey}
+          onClose={handleSurveyClose}
+          userId={phoneNumber}
+        />
+      )}
     </div>
   );
 };

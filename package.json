@@ -2,16 +2,21 @@
   "name": "ambassador",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://vudesign116.github.io/ambassador",
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "antd": "^5.27.4",
+    "dayjs": "^1.11.18",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-quill": "^2.0.0",
     "react-router-dom": "^6.15.0",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "recharts": "^3.2.1",
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -40,6 +45,7 @@
     ]
   },
   "devDependencies": {
+    "firebase-tools": "^14.20.0",
     "gh-pages": "^6.3.0"
   }
 }

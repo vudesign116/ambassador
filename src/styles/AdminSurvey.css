@@ -1,0 +1,333 @@
+/* Admin Survey Pages - Additional Styles */
+
+/* Survey List Page */
+.survey-list-page {
+  background: #f0f2f5;
+  min-height: 100vh;
+}
+
+.survey-list-page .header-gradient {
+  background: linear-gradient(135deg, #26C6DA 0%, #00BFA5 100%);
+  padding: 32px 24px;
+  color: white;
+  margin-bottom: 0;
+}
+
+.survey-list-page .header-title {
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  text-align: center;
+}
+
+.survey-list-page .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.survey-list-page .card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.survey-list-page .title-3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 16px;
+}
+
+/* Back button - Universal style for all survey pages */
+.survey-list-page .btn-link,
+.survey-responses-page .btn-link,
+.survey-form-page .btn-link {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.survey-list-page .btn-link:hover,
+.survey-responses-page .btn-link:hover,
+.survey-form-page .btn-link:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+/* Table styles */
+.survey-list-page .ant-table {
+  font-size: 14px;
+}
+
+.survey-list-page .ant-table-thead > tr > th {
+  background: #fafafa;
+  font-weight: 600;
+  color: #262626;
+}
+
+.survey-list-page .ant-table-tbody > tr:hover > td {
+  background: #f5f5f5;
+}
+
+/* Tags */
+.survey-list-page .ant-tag {
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* Survey Responses Page */
+.survey-responses-page {
+  background: #f0f2f5;
+  min-height: 100vh;
+}
+
+.survey-responses-page .header-gradient {
+  background: linear-gradient(135deg, #26C6DA 0%, #00BFA5 100%);
+  padding: 32px 24px;
+  color: white;
+  margin-bottom: 0;
+}
+
+.survey-responses-page .header-title {
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  text-align: center;
+}
+
+.survey-responses-page .container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.survey-responses-page .ant-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+}
+
+.survey-responses-page .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 24px;
+}
+
+.survey-responses-page .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.survey-responses-page .ant-card-body {
+  padding: 24px;
+}
+
+.survey-responses-page .title-3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 8px;
+}
+
+.survey-responses-page .text-secondary {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* Export button */
+.survey-responses-page .ant-btn-primary {
+  background: #00BFA5;
+  border-color: #00BFA5;
+  border-radius: 6px;
+  font-weight: 500;
+  height: 36px;
+  padding: 0 16px;
+}
+
+.survey-responses-page .ant-btn-primary:hover {
+  background: #00D4B8;
+  border-color: #00D4B8;
+}
+
+/* Survey Form Page */
+.survey-form-page {
+  background: #f0f2f5;
+  min-height: 100vh;
+}
+
+.survey-form-page .header-gradient {
+  background: linear-gradient(135deg, #26C6DA 0%, #00BFA5 100%);
+  padding: 32px 24px;
+  color: white;
+  margin-bottom: 0;
+}
+
+.survey-form-page .header-title {
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  text-align: center;
+}
+
+.survey-form-page .container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.survey-form-page .ant-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+}
+
+.survey-form-page .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 24px;
+}
+
+.survey-form-page .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.survey-form-page .ant-card-body {
+  padding: 24px;
+}
+
+/* Form labels */
+.survey-form-page .ant-form-item-label > label {
+  font-weight: 500;
+  color: #262626;
+}
+
+/* Form inputs */
+.survey-form-page .ant-input,
+.survey-form-page .ant-input-number,
+.survey-form-page .ant-select-selector {
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.survey-form-page .ant-input:focus,
+.survey-form-page .ant-input-focused,
+.survey-form-page .ant-input-number:focus,
+.survey-form-page .ant-input-number-focused,
+.survey-form-page .ant-select-focused .ant-select-selector {
+  border-color: #00BFA5;
+  box-shadow: 0 0 0 2px rgba(0, 191, 165, 0.1);
+}
+
+/* Question cards */
+.survey-form-page .question-card {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.survey-form-page .question-card:hover {
+  border-color: #d9d9d9;
+}
+
+/* Buttons */
+.survey-form-page .ant-btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.survey-form-page .ant-btn-primary {
+  background: #00BFA5;
+  border-color: #00BFA5;
+  height: 40px;
+}
+
+.survey-form-page .ant-btn-primary:hover {
+  background: #00D4B8;
+  border-color: #00D4B8;
+}
+
+.survey-form-page .ant-btn-dashed {
+  border-color: #00BFA5;
+  color: #00BFA5;
+}
+
+.survey-form-page .ant-btn-dashed:hover {
+  border-color: #00D4B8;
+  color: #00D4B8;
+}
+
+/* Image upload preview */
+.survey-form-page .ant-image {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.survey-form-page .ant-upload-wrapper {
+  width: 100%;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .survey-list-page .container,
+  .survey-responses-page .container,
+  .survey-form-page .container {
+    padding: 16px;
+  }
+
+  .survey-list-page .header-gradient,
+  .survey-responses-page .header-gradient,
+  .survey-form-page .header-gradient {
+    padding: 24px 16px;
+  }
+
+  .survey-list-page .header-title,
+  .survey-responses-page .header-title,
+  .survey-form-page .header-title {
+    font-size: 20px;
+  }
+
+  .survey-list-page .card,
+  .survey-responses-page .ant-card,
+  .survey-form-page .ant-card {
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  /* Stack buttons vertically on mobile */
+  .survey-list-page .ant-table .ant-space {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .survey-list-page .ant-table .ant-btn {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+}
+
+/* Fix for table overflow on small screens */
+@media (max-width: 576px) {
+  .survey-responses-page .ant-table-wrapper {
+    overflow-x: auto;
+  }
+}
