@@ -1,16 +1,22 @@
 {
   "files": {
-    "main.css": "/ambassador/static/css/main.a43331ab.css",
-    "main.js": "/ambassador/static/js/main.f6009ca1.js",
-    "static/media/name3.png": "/ambassador/static/media/name3.a6341ae130d1278e8722.png",
-    "static/media/name2.png": "/ambassador/static/media/name2.44c0f4887624d0fbd7b1.png",
-    "static/media/name1.png": "/ambassador/static/media/name1.a35dfb91edae6872854f.png",
-    "index.html": "/ambassador/index.html",
-    "main.a43331ab.css.map": "/ambassador/static/css/main.a43331ab.css.map",
-    "main.f6009ca1.js.map": "/ambassador/static/js/main.f6009ca1.js.map"
+    "main.css": "/static/css/main.62503a99.css",
+    "main.js": "/static/js/main.8cb22823.js",
+    "static/media/scoring-banner.jpg": "/static/media/scoring-banner.bbdc0512f7f81e008743.jpg",
+    "static/media/banner.png": "/static/media/banner.9a1e3681f879348861ba.png",
+    "static/media/MAmbassador-logo.png": "/static/media/MAmbassador-logo.2910f382c906e5d43ac6.png",
+    "static/media/name5.png": "/static/media/name5.c4f52916c4f52131905b.png",
+    "static/media/name4.png": "/static/media/name4.41fc6995d91366ab60a7.png",
+    "static/media/name3.png": "/static/media/name3.a6341ae130d1278e8722.png",
+    "static/media/name2.png": "/static/media/name2.44c0f4887624d0fbd7b1.png",
+    "static/media/name1.png": "/static/media/name1.a35dfb91edae6872854f.png",
+    "static/media/logo.png": "/static/media/logo.400b109c5aea56f9bc33.png",
+    "index.html": "/index.html",
+    "main.62503a99.css.map": "/static/css/main.62503a99.css.map",
+    "main.8cb22823.js.map": "/static/js/main.8cb22823.js.map"
   },
   "entrypoints": [
-    "static/css/main.a43331ab.css",
-    "static/js/main.f6009ca1.js"
+    "static/css/main.62503a99.css",
+    "static/js/main.8cb22823.js"
   ]
 }
