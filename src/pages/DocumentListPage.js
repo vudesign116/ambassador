@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Input, List, Card, Tag, Button, Modal, Progress, Typography, Space, Spin, Empty } from 'antd';
-import { SearchOutlined, ArrowLeftOutlined, FileTextOutlined, VideoCameraOutlined, CloseOutlined, TrophyOutlined, ClockCircleOutlined, LikeFilled } from '@ant-design/icons';
+import { SearchOutlined, ArrowLeftOutlined, FileTextOutlined, VideoCameraOutlined, CloseOutlined, TrophyOutlined, ClockCircleOutlined, LikeFilled, LoadingOutlined } from '@ant-design/icons';
 import videoFileIcon from '../images/video-file.png';
 import pdfFileIcon from '../images/pdf-file.png';
 import { postViewingHistory } from '../utils/apiHelper';
@@ -60,18 +60,23 @@ const DocumentListPage = () => {
   const [timerInterval, setTimerInterval] = useState(null);
   const [hearts, setHearts] = useState([]);
   const [heartId, setHeartId] = useState(0);
-  const [showCelebration, setShowCelebration] = useState(false);
   const [confetti, setConfetti] = useState([]);
   const [hasReached100Percent, setHasReached100Percent] = useState(false);
+  const [hasReached50Percent, setHasReached50Percent] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [apiLoading, setApiLoading] = useState(true);
   const [hasPostedToAPI, setHasPostedToAPI] = useState(false);
   const hasPostedRef = React.useRef(false); // Use ref to track POST status
   const hasMarkedViewedRef = React.useRef(false); // Track if document marked as viewed
+  const autoPostTimeoutRef = React.useRef(null); // Track auto POST timeout
+  const hasShown50ModalRef = React.useRef(false); // Track if 50% modal shown
+  const hasShown100ModalRef = React.useRef(false); // Track if 100% modal shown
+  const currentDocumentRef = React.useRef(null); // Track current document (avoid stale closure)
   const [likeCount, setLikeCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
-  const [minViewingTime, setMinViewingTime] = useState(60); // Default 60 seconds
+  const [minViewingTime50, setMinViewingTime50] = useState(60); // Default 60s for 50%
+  const [minViewingTime100, setMinViewingTime100] = useState(120); // Default 120s for 100%
   const [apiStatus, setApiStatus] = useState('idle'); // 'idle' | 'posting' | 'success' | 'error'
   const [apiErrorMessage, setApiErrorMessage] = useState('');
 
@@ -81,17 +86,36 @@ const DocumentListPage = () => {
       const savedConfig = localStorage.getItem('admin_general_config');
       if (savedConfig) {
         const config = JSON.parse(savedConfig);
-        setMinViewingTime(config.pointsViewDuration || 60);
+        const duration50 = config.pointsViewDuration50 || 60;
+        const duration100 = config.pointsViewDuration100 || 120;
+        console.log('[CONFIG] Loading admin config - 50%:', duration50, '100%:', duration100);
+        setMinViewingTime50(duration50);
+        setMinViewingTime100(duration100);
       } else {
-        // Fallback to app_points_view_duration if available
-        const appDuration = localStorage.getItem('app_points_view_duration');
-        if (appDuration) {
-          setMinViewingTime(parseInt(appDuration));
-        }
+        // Fallback to localStorage values if available
+        const duration50 = localStorage.getItem('app_points_view_duration_50');
+        const duration100 = localStorage.getItem('app_points_view_duration_100');
+        console.log('[CONFIG] Loading localStorage config - 50%:', duration50, '100%:', duration100);
+        if (duration50) setMinViewingTime50(parseInt(duration50));
+        if (duration100) setMinViewingTime100(parseInt(duration100));
       }
     };
     loadConfig();
   }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clear auto POST timeout on unmount
+      if (autoPostTimeoutRef.current) {
+        clearTimeout(autoPostTimeoutRef.current);
+      }
+      // Clear timer interval on unmount
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [timerInterval]);
 
   // Track category view when page loads
   useEffect(() => {
@@ -212,11 +236,16 @@ const DocumentListPage = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     
     setCurrentDocument(document);
+    currentDocumentRef.current = document; // ✅ Store in ref for timer callbacks
     setViewerOpen(true);
     setViewingTime(0);
     setEarnedPoints(0);
+    setHasReached50Percent(false); // Reset 50% milestone
+    setHasReached100Percent(false); // Reset 100% milestone
     setIsLoading(true);
     setLoadError(false);
+    setApiStatus('idle'); // Reset API status
+    setApiErrorMessage(''); // Clear error message
     hasPostedRef.current = false; // Reset POST flag for new document
     hasMarkedViewedRef.current = false; // Reset marked viewed flag for new document
     
@@ -254,77 +283,52 @@ const DocumentListPage = () => {
     const interval = setInterval(() => {
       setViewingTime(prevTime => {
         const newTime = prevTime + 1;
-        // Calculate points based on viewing time (minViewingTime = 100%)
+        
+        // Calculate points based on 2-tier system:
+        // - 0 to 50% time: 0% to 50% points (linear)
+        // - 50% to 100% time: 50% to 100% points (linear)
         const basePoints = parseInt(document.points.replace(/[^\d]/g, '')) || 0;
-        const earnedPoints = Math.min(Math.floor((newTime / minViewingTime) * basePoints), basePoints);
+        let earnedPoints = 0;
+        
+        if (newTime <= minViewingTime50) {
+          // 0 to 50% range
+          earnedPoints = Math.floor((newTime / minViewingTime50) * (basePoints / 2));
+        } else if (newTime <= minViewingTime100) {
+          // 50% to 100% range
+          const progressBeyond50 = newTime - minViewingTime50;
+          const rangeBeyond50 = minViewingTime100 - minViewingTime50;
+          const pointsFor50To100 = (progressBeyond50 / rangeBeyond50) * (basePoints / 2);
+          earnedPoints = Math.floor((basePoints / 2) + pointsFor50To100);
+        } else {
+          // Already at 100%
+          earnedPoints = basePoints;
+        }
+        
         setEarnedPoints(earnedPoints);
         
-        // Trigger celebration when reaching 100% for the first time
-        if (!hasReached100Percent && newTime >= minViewingTime) {
+        // 🎉 Track 50% milestone - Show modal popup ONCE
+        // ✅ Safety check: Only show modal if viewer is still open
+        if (!hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpen) {
+          setHasReached50Percent(true);
+          hasShown50ModalRef.current = true; // Mark as shown
+          triggerCelebration(50); // Show 50% modal
+        }
+        
+        // 🎊 Track 100% milestone - Auto POST API immediately
+        // ✅ Safety check: Only trigger if viewer is still open
+        if (!hasReached100Percent && newTime >= minViewingTime100 && !hasShown100ModalRef.current && viewerOpen) {
+          console.log('[100% CHECK] newTime:', newTime, 'minViewingTime100:', minViewingTime100, 'condition:', newTime >= minViewingTime100);
           setHasReached100Percent(true);
+          hasShown100ModalRef.current = true; // Mark as shown
           
-          const phoneNumber = localStorage.getItem('phoneNumber');
-          const ma_kh_dms = localStorage.getItem('ma_kh_dms') || '';
+          // Trigger confetti animation
+          createConfetti();
           
-          // 🆕 POST to API FIRST and WAIT for response
+          // POST API IMMEDIATELY when reaching 100%
           if (!hasPostedRef.current) {
-            hasPostedRef.current = true;
-            setApiStatus('posting'); // Show loading state
-            
-            postViewingHistory(ma_kh_dms, phoneNumber, document.id)
-              .then(result => {
-                if (result.success) {
-                  console.log('✅ Posted viewing history to server - SUCCESS');
-                  setApiStatus('success');
-                  setHasPostedToAPI(true);
-                  
-                  // Set flag to trigger dashboard reload
-                  localStorage.setItem('points_updated', 'true');
-                  
-                  // ✅ ONLY mark as viewed AFTER API success
-                  if (!hasMarkedViewedRef.current) {
-                    hasMarkedViewedRef.current = true;
-                    
-                    const documentData = {
-                      document_id: document.id,
-                      document_name: document.name,
-                      document_type: document.type,
-                      points: parseInt(document.points.replace(/[^\d]/g, '')) || 0,
-                      ma_kh_dms,
-                      phone: phoneNumber,
-                      category: category,
-                      timestamp: new Date().toISOString()
-                    };
-                    
-                    // Add to PointsManager (this will mark as viewed and start cooldown)
-                    PointsManager.addEarnedPoint(documentData);
-                    console.log('✅ Document marked as viewed with cooldown AFTER API success');
-                  }
-                  
-                  // 🎉 NOW trigger celebration after API success
-                  triggerCelebration();
-                  
-                } else {
-                  // API returned but with error (status 400, no_endpoint, missing_data, etc.)
-                  console.log('⚠️ Failed to post viewing history:', result.reason || result.error);
-                  setApiStatus('error');
-                  
-                  // Set error message based on reason
-                  if (result.reason === 'no_endpoint') {
-                    setApiErrorMessage('Hệ thống chưa được cấu hình. Vui lòng liên hệ quản trị viên.');
-                  } else if (result.reason === 'missing_data') {
-                    setApiErrorMessage('Thiếu thông tin tài khoản. Vui lòng đăng nhập lại.');
-                  } else {
-                    setApiErrorMessage('Điểm không được ghi nhận. Vui lòng thử lại sau!');
-                  }
-                }
-              })
-              .catch(err => {
-                // Network error or other exceptions
-                console.error('❌ API error:', err);
-                setApiStatus('error');
-                setApiErrorMessage('Lỗi kết nối. Điểm không được ghi nhận. Vui lòng thử lại sau!');
-              });
+            console.log('[Auto POST] Triggering auto POST immediately at 100% milestone');
+            // ✅ Pass current viewingTime from newTime
+            postToAPIAndClose(newTime);
           }
         }
         
@@ -347,7 +351,20 @@ const DocumentListPage = () => {
   const closeViewer = () => {
     // Kiểm tra xem đã đạt đủ điểm chưa
     const hasEarnedPoints = earnedPoints > 0;
-    const stillWatching = viewingTime > 0 && viewingTime < minViewingTime;
+    const stillWatching = viewingTime > 0 && viewingTime < minViewingTime100;
+    const reached100 = hasReached100Percent || viewingTime >= minViewingTime100;
+    
+    console.log('[CLOSE VIEWER] Debug:', {
+      viewingTime,
+      earnedPoints,
+      hasEarnedPoints,
+      stillWatching,
+      reached100,
+      hasReached100Percent,
+      hasPostedRef: hasPostedRef.current,
+      minViewingTime50,
+      minViewingTime100
+    });
     
     // Nếu đang xem nhưng chưa đủ thời gian, hiện confirm
     if (stillWatching && !hasEarnedPoints) {
@@ -361,7 +378,11 @@ const DocumentListPage = () => {
         content: (
           <div style={{ paddingLeft: 32 }}>
             <p style={{ fontSize: 15, marginBottom: 12, lineHeight: 1.6 }}>
-              Bạn đã xem được <strong style={{ color: '#ff4d4f', fontSize: 16 }}>{viewingTime} giây</strong> (cần tối thiểu <strong>{minViewingTime} giây</strong> để nhận điểm).
+              Bạn đã xem được <strong style={{ color: '#ff4d4f', fontSize: 16 }}>{viewingTime} giây</strong>.
+            </p>
+            <p style={{ fontSize: 13, color: '#666', marginBottom: 12, lineHeight: 1.6 }}>
+              • Xem <strong>{minViewingTime50}s</strong> → Nhận <strong style={{ color: '#1890ff' }}>50% điểm</strong><br/>
+              • Xem <strong>{minViewingTime100}s</strong> → Nhận <strong style={{ color: '#52c41a' }}>100% điểm</strong>
             </p>
             <p style={{ fontSize: 15, marginBottom: 0, lineHeight: 1.6 }}>
               Bạn có chắc chắn muốn thoát không?
@@ -393,8 +414,181 @@ const DocumentListPage = () => {
       return; // Không thoát ngay, đợi confirm
     }
     
-    // Nếu đã đủ điểm hoặc chưa xem gì, thoát luôn
-    performClose();
+    // Nếu đã đạt 100% và chưa POST, POST API trước khi đóng
+    if (reached100 && !hasPostedRef.current) {
+      postToAPIAndClose();
+    } 
+    // Nếu đã đạt 50%-99% (có điểm) nhưng chưa POST, POST API với điểm hiện tại
+    else if (hasEarnedPoints && !hasPostedRef.current && viewingTime >= minViewingTime50) {
+      postToAPIAndClose();
+    }
+    // Nếu chưa đạt 50% HOẶC đã POST rồi, thoát luôn
+    else {
+      performClose();
+    }
+  };
+
+  const postToAPIAndClose = async (actualViewingTime = null) => {
+    const phoneNumber = localStorage.getItem('phoneNumber');
+    const ma_kh_dms = localStorage.getItem('ma_kh_dms') || '';
+    
+    // Use ref to get current document (avoid stale closure)
+    const docToPost = currentDocumentRef.current || currentDocument;
+    
+    if (!docToPost) {
+      console.error('[POST API] No document to post!');
+      Modal.error({
+        title: '❌ Lỗi',
+        content: 'Không tìm thấy thông tin tài liệu',
+        okText: 'Đóng',
+        centered: true,
+        onOk: () => performClose()
+      });
+      return;
+    }
+    
+    // Use actualViewingTime if provided, otherwise use state (may be stale)
+    const currentViewingTime = actualViewingTime !== null ? actualViewingTime : viewingTime;
+    
+    console.log('[POST API] Using viewingTime:', currentViewingTime, '(actual:', actualViewingTime, 'state:', viewingTime, ')');
+    console.log('[POST API] Document:', docToPost.id, docToPost.name);
+    
+    // Calculate time_rate: 60s = 0.5, 120s = 1.0
+    let timeRate = 0;
+    if (currentViewingTime >= minViewingTime100) {
+      // >= 120s = 1.0 (100%)
+      timeRate = 1.0;
+    } else if (currentViewingTime >= minViewingTime50) {
+      // 60s-120s: linear from 0.5 to 1.0
+      const progress = (currentViewingTime - minViewingTime50) / (minViewingTime100 - minViewingTime50);
+      timeRate = 0.5 + (progress * 0.5);
+    } else if (currentViewingTime > 0) {
+      // 0s-60s: linear from 0 to 0.5
+      timeRate = (currentViewingTime / minViewingTime50) * 0.5;
+    }
+    
+    // Round to 2 decimal places
+    timeRate = Math.round(timeRate * 100) / 100;
+    
+    // Parse base points from document
+    let basePoints = 4; // default
+    if (docToPost?.points) {
+      if (typeof docToPost.points === 'string') {
+        basePoints = parseInt(docToPost.points) || 4;
+      } else {
+        basePoints = docToPost.points;
+      }
+    }
+    
+    console.log('[POST API] Data:', {
+      currentViewingTime,
+      viewingTimeState: viewingTime,
+      minViewingTime50,
+      minViewingTime100,
+      timeRate,
+      basePoints,
+      earnedPoints
+    });
+    
+    // Show loading modal
+    const loadingModal = Modal.info({
+      title: 'Đang lưu điểm...',
+      content: 'Vui lòng đợi trong giây lát',
+      icon: <LoadingOutlined />,
+      okButtonProps: { style: { display: 'none' } },
+      centered: true
+    });
+
+    hasPostedRef.current = true;
+    
+    try {
+      // POST with full information
+      const result = await postViewingHistory(
+        ma_kh_dms, 
+        phoneNumber, 
+        docToPost.id,        // ✅ Use ref document
+        currentViewingTime,  // ✅ watch_duration_seconds (use actual time)
+        timeRate,            // time_rate (60s=0.5, 120s=1.0)
+        basePoints,          // base_point
+        Math.floor(basePoints * timeRate) // ✅ effective_point (recalculate)
+      );
+      
+      loadingModal.destroy();
+      
+      console.log('[POST API] Result:', result);
+      
+      if (result.success) {
+        // Mark as viewed in PointsManager
+        if (!hasMarkedViewedRef.current) {
+          hasMarkedViewedRef.current = true;
+          
+          const documentData = {
+            document_id: docToPost.id,
+            document_name: docToPost.name,
+            document_type: docToPost.type,
+            points: Math.floor(basePoints * timeRate), // Use calculated points
+            ma_kh_dms,
+            phone: phoneNumber,
+            category: category,
+            timestamp: new Date().toISOString()
+          };
+          
+          PointsManager.addEarnedPoint(documentData);
+          localStorage.setItem('points_updated', 'true');
+        }
+        
+        // Show success modal with celebration
+        const effectivePoints = Math.floor(basePoints * timeRate);
+        Modal.success({
+          title: '🎊 Hoàn thành & Đã ghi nhận điểm!',
+          content: (
+            <div>
+              <p style={{ fontSize: 18, marginBottom: 12, color: '#52c41a', fontWeight: 'bold' }}>
+                🏆 Tổng cộng: <span style={{ fontSize: 28 }}>{effectivePoints} điểm</span>
+              </p>
+              <p style={{ fontSize: 16, marginBottom: 8 }}>
+                ✅ Bạn đã xem đủ <strong>100%</strong> thời gian tài liệu
+              </p>
+              <p style={{ fontSize: 14, color: '#666' }}>
+                Điểm đã được lưu vào hệ thống thành công
+              </p>
+            </div>
+          ),
+          okText: 'Tuyệt vời!',
+          centered: true,
+          onOk: () => {
+            performClose();
+          }
+        });
+      } else {
+        // API failed
+        console.error('[POST API] Failed:', result.reason, result);
+        Modal.error({
+          title: '⚠️ Lỗi ghi nhận điểm',
+          content: result.reason === 'no_endpoint' 
+            ? 'Hệ thống chưa được cấu hình. Vui lòng liên hệ quản trị viên.'
+            : `Không thể lưu điểm. ${result.reason || 'Vui lòng thử lại sau!'}`,
+          okText: 'Đóng',
+          centered: true,
+          onOk: () => {
+            performClose();
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[POST API] Exception:', error);
+      loadingModal.destroy();
+      
+      Modal.error({
+        title: '❌ Lỗi kết nối',
+        content: 'Không thể kết nối đến server. Điểm chưa được lưu!',
+        okText: 'Đóng',
+        centered: true,
+        onOk: () => {
+          performClose();
+        }
+      });
+    }
   };
 
   const performClose = () => {
@@ -403,17 +597,20 @@ const DocumentListPage = () => {
 
     setViewerOpen(false);
     setCurrentDocument(null);
+    currentDocumentRef.current = null; // ✅ Clear ref
     setViewingTime(0);
     setEarnedPoints(0);
     setHearts([]);
     setHeartId(0);
-    setShowCelebration(false);
     setConfetti([]);
     setHasReached100Percent(false);
+    setHasReached50Percent(false);
     setIsLoading(false);
     setLoadError(false);
     setHasPostedToAPI(false);
     hasPostedRef.current = false; // Reset ref when closing viewer
+    hasShown50ModalRef.current = false; // Reset 50% modal flag
+    hasShown100ModalRef.current = false; // Reset 100% modal flag
     setLikeCount(0);
     setHasLiked(false);
     setApiStatus('idle'); // Reset API status
@@ -423,6 +620,12 @@ const DocumentListPage = () => {
     if (timerInterval) {
       clearInterval(timerInterval);
       setTimerInterval(null);
+    }
+    
+    // Clear auto POST timeout
+    if (autoPostTimeoutRef.current) {
+      clearTimeout(autoPostTimeoutRef.current);
+      autoPostTimeoutRef.current = null;
     }
     
     // Clear loading timeout
@@ -481,7 +684,17 @@ const DocumentListPage = () => {
   };
 
   const getPointsPercentage = () => {
-    return Math.min(Math.floor((viewingTime / minViewingTime) * 100), 100);
+    if (viewingTime <= minViewingTime50) {
+      // 0 to 50% range
+      return Math.floor((viewingTime / minViewingTime50) * 50);
+    } else if (viewingTime <= minViewingTime100) {
+      // 50% to 100% range
+      const progressBeyond50 = viewingTime - minViewingTime50;
+      const rangeBeyond50 = minViewingTime100 - minViewingTime50;
+      return Math.floor(50 + (progressBeyond50 / rangeBeyond50) * 50);
+    } else {
+      return 100;
+    }
   };
 
   // Load like count from localStorage when document opens
@@ -579,14 +792,41 @@ const DocumentListPage = () => {
     }, 6000);
   };
 
-  const triggerCelebration = () => {
-    setShowCelebration(true);
-    createConfetti();
+  const triggerCelebration = (milestone = 50) => {
+    // Parse points - could be "4 điểm" or 4
+    let basePoints = 4; // default
+    if (currentDocument?.points) {
+      if (typeof currentDocument.points === 'string') {
+        basePoints = parseInt(currentDocument.points) || 4;
+      } else {
+        basePoints = currentDocument.points;
+      }
+    }
     
-    // Hide celebration after 4 seconds
-    setTimeout(() => {
-      setShowCelebration(false);
-    }, 4000);
+    const points50 = Math.floor(basePoints / 2);
+    const points100 = basePoints;
+    
+    // Show 50% milestone modal
+    Modal.success({
+      title: '🎉 Đạt mốc 50%!',
+      content: (
+        <div>
+          <p style={{ fontSize: '16px', marginBottom: '8px' }}>
+            Bạn đã xem được <strong>50%</strong> thời gian tài liệu!
+          </p>
+          <p style={{ fontSize: '18px', color: '#52c41a', fontWeight: 'bold', marginBottom: '0' }}>
+            ✅ Nhận được: <span style={{ fontSize: '24px' }}>{points50} điểm</span>
+          </p>
+          <p style={{ fontSize: '14px', color: '#666', marginTop: '12px' }}>
+            💡 Xem thêm {minViewingTime100 - minViewingTime50} giây nữa để nhận đủ {points100} điểm!
+          </p>
+        </div>
+      ),
+      okText: 'Tiếp tục xem',
+      centered: true,
+    });
+    
+    createConfetti();
   };
 
   return (
@@ -916,7 +1156,7 @@ const DocumentListPage = () => {
           </div>
 
           {/* API Processing Notification */}
-          {apiStatus === 'posting' && viewingTime >= minViewingTime && (
+          {apiStatus === 'posting' && viewingTime >= minViewingTime100 && (
             <div className="celebration-notification" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
               <div className="celebration-content">
                 <div className="celebration-icon">
@@ -933,7 +1173,7 @@ const DocumentListPage = () => {
           )}
 
           {/* API Error Notification */}
-          {apiStatus === 'error' && viewingTime >= minViewingTime && (
+          {apiStatus === 'error' && viewingTime >= minViewingTime100 && (
             <>
               {/* Dark Overlay */}
               <div style={{
@@ -980,20 +1220,6 @@ const DocumentListPage = () => {
             </>
           )}
 
-          {/* Celebration Notification */}
-          {showCelebration && (
-            <div className="celebration-notification">
-              <div className="celebration-content">
-                <div className="celebration-icon">🎉</div>
-                <div className="celebration-text">
-                  <Title level={3} style={{ margin: 0, color: 'white' }}>Chúc mừng! Bạn đã hoàn thành</Title>
-                  <Text style={{ color: 'white' }}>
-                    Nhận được <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{earnedPoints} điểm</span>
-                  </Text>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </Modal>
     </div>
