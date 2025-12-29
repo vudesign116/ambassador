@@ -129,3 +129,194 @@ export const testViewingHistoryAPI = async () => {
 if (typeof window !== 'undefined') {
   window.testViewingHistoryAPI = testViewingHistoryAPI;
 }
+
+/**
+ * Get user info from login API (includes ma_kh_dms)
+ * @param {string} phone - Phone number
+ * @returns {Promise<object>} { success: boolean, data: { phone, name, ma_kh_dms }, reason?: string }
+ */
+export const getUserInfo = async (phone) => {
+  try {
+    const cleanPhone = (phone || '').toString().trim();
+    
+    if (!cleanPhone) {
+      return { success: false, reason: 'missing_phone' };
+    }
+
+    const apiUrl = 'https://bi.meraplion.com/local/nvbc_login/';
+    console.log('[API] Getting user info via login:', cleanPhone);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ phone: cleanPhone }),
+    });
+
+    if (!response.ok) {
+      console.error('[API] HTTP error:', response.status, response.statusText);
+      return { success: false, reason: `http_error_${response.status}` };
+    }
+
+    const result = await response.json();
+    console.log('[API] User info response:', result);
+
+    // Check if login successful (has phone and ma_kh_dms)
+    if (result.phone && result.ma_kh_dms) {
+      return {
+        success: true,
+        data: {
+          phone: result.phone,
+          name: result.name || '',
+          ma_kh_dms: result.ma_kh_dms,
+        }
+      };
+    } else if (result.mess_error) {
+      // Phone not found in system
+      return {
+        success: false,
+        reason: 'phone_not_found',
+        data: result
+      };
+    } else {
+      return {
+        success: false,
+        reason: 'unknown_error',
+        data: result
+      };
+    }
+  } catch (error) {
+    console.error('[API] Error getting user info:', error);
+    return { success: false, reason: error.message };
+  }
+};
+
+/**
+ * Get user points from API
+ * @param {string} phone - Phone number
+ * @returns {Promise<object>} { success: boolean, data: { point: number }, reason?: string }
+ */
+export const getUserPoints = async (phone) => {
+  try {
+    const cleanPhone = (phone || '').toString().trim();
+    
+    if (!cleanPhone) {
+      return { success: false, reason: 'missing_phone' };
+    }
+
+    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_point/?phone=${encodeURIComponent(cleanPhone)}&test=1`;
+    console.log('[API] Getting user points:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('[API] HTTP error:', response.status, response.statusText);
+      return { success: false, reason: `http_error_${response.status}` };
+    }
+
+    const result = await response.json();
+    console.log('[API] User points response:', result);
+
+    // Check if API returned success status
+    if (result.status === 'ok') {
+      return {
+        success: true,
+        data: {
+          point: result.point || 0,
+          phone: result.phone || cleanPhone,
+        }
+      };
+    } else {
+      return {
+        success: false,
+        reason: result.error_message || 'unknown_error',
+        data: result
+      };
+    }
+  } catch (error) {
+    console.error('[API] Error getting user points:', error);
+    return { success: false, reason: error.message };
+  }
+};
+
+/**
+ * Submit referral (người giới thiệu)
+ * @param {string} inviteePhone - Phone của người được giới thiệu (người login)
+ * @param {string} referralPhone - Phone của người giới thiệu
+ * @returns {Promise<object>} { success: boolean, data?: object, reason?: string }
+ */
+export const submitReferral = async (inviteePhone, referralPhone) => {
+  try {
+    const cleanInviteePhone = (inviteePhone || '').toString().trim();
+    const cleanReferralPhone = (referralPhone || '').toString().trim();
+    
+    if (!cleanInviteePhone || !cleanReferralPhone) {
+      return { success: false, reason: 'missing_phone' };
+    }
+
+    // Create UTC+7 timestamp in ISO format: "2025-12-10T09:30:123"
+    const now = new Date();
+    const utc7Time = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    const insertedAt = utc7Time.toISOString().slice(0, -1); // Remove 'Z' at end
+
+    const apiUrl = 'https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=1';
+    const payload = [{
+      invitee_phone: cleanInviteePhone,
+      referral_phone: cleanReferralPhone,
+      inserted_at: insertedAt
+    }];
+
+    console.log('[API] Submitting referral:', payload);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // Parse JSON response even if status is 400
+    let result;
+    try {
+      result = await response.json();
+      console.log('[API] Referral response:', result);
+    } catch (parseError) {
+      console.error('[API] Failed to parse response:', parseError);
+      return { success: false, reason: `http_error_${response.status}` };
+    }
+
+    // Check if API returned success status
+    if (result.status === 'ok') {
+      return {
+        success: true,
+        data: result
+      };
+    } else {
+      // API returned error with error_message
+      return {
+        success: false,
+        reason: result.error_message || 'unknown_error',
+        data: result
+      };
+    }
+  } catch (error) {
+    console.error('[API] Error submitting referral:', error);
+    return { success: false, reason: error.message };
+  }
+};
+
+// Export default object with all functions
+export default {
+  postViewingHistory,
+  testViewingHistoryAPI,
+  getUserInfo,
+  getUserPoints,
+  submitReferral,
+};

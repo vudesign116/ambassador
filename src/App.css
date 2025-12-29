@@ -56,6 +56,38 @@
   justify-content: center;
 }
 
+/* Blinking NEW label animation */
+@keyframes blink-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.new-label-blink {
+  animation: blink-red 1.5s ease-in-out infinite;
+  background-color: #ff4d4f !important;
+  color: white !important;
+  font-weight: bold !important;
+  border: none !important;
+  font-size: 11px !important;
+  padding: 0 6px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+}
+
+/* Streak suggestion blinking animation */
+@keyframes blink-yellow-bg {
+  0%, 100% { 
+    background-color: #fff7e6;
+  }
+  50% { 
+    background-color: #fffbf0;
+  }
+}
+
+.streak-suggestion-blink {
+  animation: blink-yellow-bg 2s ease-in-out infinite;
+}
+
 /* Override other Ant Design primary colors */
 .ant-input:focus,
 .ant-input-focused {

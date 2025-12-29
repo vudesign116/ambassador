@@ -162,18 +162,16 @@ class RewardApiService {
    * @returns {Promise<Object>} Reward status data
    */
   async getRewardStatus(phoneNumber) {
-    // Correct API endpoint for getting reward status
+    // ✅ New API endpoint (no auth required)
     const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local';
-    const endpoint = `${apiBaseUrl}/nvbc_get_point/?phone=${phoneNumber}`;
+    const endpoint = `${apiBaseUrl}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
     
     const token = this.getAuthToken();
 
     try {
       console.log('🔍 GET Reward Status from API:', endpoint);
       console.log('📞 Phone:', phoneNumber);
-      console.log('🔑 Token:', token ? 'Present' : 'Missing');
 
-      // ✅ ALWAYS send token from the start (API requires authentication)
       const headers = {
         'Content-Type': 'application/json'
       };

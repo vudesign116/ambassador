@@ -113,19 +113,17 @@ const RewardSelectionPage = () => {
         
       } catch (apiError) {
         console.error('❌ API Error:', apiError);
-        console.log('⚠️ Falling back to demo mode...');
+        console.log('⚠️ API call failed - showing not available message');
         
-        // Fallback: Use demo data (matches your admin config)
-        const mockData = {
-          show_reward_selection: true,
-          th_monthly_reward: true,           // ✅ Tích cực tháng
-          product_expert_reward: true,       // ✅ Đạt chuẩn DGCC/CGSP
-          best_active_member: true,          // ✅ Tích cực và tốt nhất tháng
-          point: 5500
-        };
-
-        console.log('✅ Demo mode: All rewards enabled', mockData);
-        setRewardData(mockData);
+        // ✅ FIX: If API fails or returns show_reward_selection = false, 
+        // don't fallback to demo mode. Show proper "not available" message.
+        setRewardData({
+          show_reward_selection: false,
+          fail_show_reward_selection: true,
+          point: 0
+        });
+        
+        // ✅ Still load gifts for viewing (even if can't select)
         loadAvailableGifts();
         setLoading(false);
       }

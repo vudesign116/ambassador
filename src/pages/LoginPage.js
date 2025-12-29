@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Input, Button, Alert, Typography, Space, message } from 'antd';
 import { PhoneOutlined } from '@ant-design/icons';
 import logo from '../images/logo.png';
+import maiImage from '../images/mai.png';
 import { trackUserActivity } from '../utils/trackingHelper';
 import { googleSheetsService } from '../services/googleSheetsService';
 import { CONFIG_EVENTS, onConfigUpdate, reloadConfig } from '../utils/configEvents';
 import { getApiToken } from '../utils/tokenHelper';
+import apiMonitor from '../services/apiMonitor';
+import ReferralModal from '../components/ReferralModal';
+import apiHelper from '../utils/apiHelper';
 
 const { Text } = Typography;
 
@@ -17,6 +21,9 @@ const LoginPage = () => {
   const [bannerImage, setBannerImage] = useState('');
   const [petals, setPetals] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [userMaKhDms, setUserMaKhDms] = useState('');
+  const [pendingNavigation, setPendingNavigation] = useState(null);
   const navigate = useNavigate();
 
   // Detect mobile on resize
@@ -32,14 +39,15 @@ const LoginPage = () => {
   // Generate falling petals
   useEffect(() => {
     const petalArray = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 15; i++) { // Tăng số lượng hoa mai
       petalArray.push({
         id: i,
         left: Math.random() * 100,
-        animationDuration: 12 + Math.random() * 8,
-        animationDelay: Math.random() * 10,
-        size: 25 + Math.random() * 15,
-        opacity: 0.4 + Math.random() * 0.4
+        animationDuration: 10 + Math.random() * 6,
+        animationDelay: Math.random() * 8,
+        size: 20 + Math.random() * 10,
+        opacity: 0.5 + Math.random() * 0.4,
+        rotation: Math.random() * 360 // Thêm rotation cho hoa mai
       });
     }
     setPetals(petalArray);
@@ -95,6 +103,17 @@ const LoginPage = () => {
     
     return cleanup;
   }, []);
+
+  // Handle referral modal close
+  const handleReferralModalClose = (submitted) => {
+    setShowReferralModal(false);
+    
+    // Navigate to pending destination after modal closes
+    if (pendingNavigation) {
+      navigate(pendingNavigation);
+      setPendingNavigation(null);
+    }
+  };
 
   const handleLogin = async () => {
     if (!phoneNumber.trim()) {
@@ -196,6 +215,15 @@ const LoginPage = () => {
         return;
       }
 
+      // 🔍 DEBUG: Check login response
+      console.log('🔍 [LoginPage] Login Response:', {
+        phone: loginData.phone,
+        ma_kh_dms: loginData.ma_kh_dms,
+        insert_referral: loginData.insert_referral,
+        name: loginData.name,
+        fullResponse: loginData
+      });
+
       // ✅ STEP 2: Call /nvbc_get_point/ to get reward status
       const rewardResponse = await fetch(`${API_BASE_URL}/nvbc_get_point/?phone=${phoneNumber}`, {
         method: 'GET',
@@ -254,13 +282,34 @@ const LoginPage = () => {
       
       message.success('Đăng nhập thành công!');
       
-      // ✅ Navigate based on show_reward_selection
-      if (rewardData.show_reward_selection === true) {
-        // Show reward selection page
-        navigate('/reward-selection');
+      // ✅ Check if new user needs to enter referral phone (point = 0)
+      console.log('🔍 [LoginPage] Checking referral:', {
+        point: rewardData.point,
+        isNewUser: rewardData.point === 0,
+        ma_kh_dms: loginData.ma_kh_dms,
+        phone: loginData.phone
+      });
+
+      if (rewardData.point === 0) {
+        // New user (point = 0) - show referral modal first
+        console.log('✅ [LoginPage] New user detected (point = 0), showing referral modal');
+        setUserMaKhDms(loginData.ma_kh_dms);
+        setShowReferralModal(true);
+        
+        // Save navigation destination to redirect after modal
+        if (rewardData.show_reward_selection === true) {
+          setPendingNavigation('/reward-selection');
+        } else {
+          setPendingNavigation('/introduction');
+        }
       } else {
-        // Skip to introduction page
-        navigate('/introduction');
+        // Existing user (point > 0) - navigate directly
+        console.log('ℹ️ [LoginPage] Existing user (point > 0), navigating directly');
+        if (rewardData.show_reward_selection === true) {
+          navigate('/reward-selection');
+        } else {
+          navigate('/introduction');
+        }
       }
     } catch (err) {
       // ✅ Network error or timeout
@@ -292,7 +341,16 @@ const LoginPage = () => {
             margin-left: 0px;
           }
           50% {
-            margin-left: 100px;
+            margin-left: 80px;
+          }
+        }
+        
+        @keyframes rotateAnimation {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
           }
         }
         
@@ -302,17 +360,13 @@ const LoginPage = () => {
           pointer-events: none !important;
           z-index: 9999 !important;
           will-change: transform !important;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)) !important;
+          filter: drop-shadow(0 2px 4px rgba(255,215,0,0.4)) !important;
         }
 
         /* Mobile optimizations */
         @media (max-width: 768px) {
           body {
             background: linear-gradient(135deg, #00b4a5 0%, #00d9c8 50%, #56CCF2 100%) !important;
-          }
-          
-          .falling-petal {
-            display: none; /* Ẩn hiệu ứng hoa rơi trên mobile để tăng performance */
           }
           
           .login-container {
@@ -367,6 +421,22 @@ const LoginPage = () => {
       overflow: 'hidden',
       padding: '20px'
     }}>
+      {/* Hình mai góc phải trên */}
+      <img 
+        src={maiImage} 
+        alt="Mai"
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: isMobile ? '240px' : '400px',
+          height: 'auto',
+          zIndex: 5,
+          opacity: 0.9,
+          pointerEvents: 'none'
+        }}
+      />
+      
       {/* Overlay để làm tối background một chút (optional) - CHỈ HIỂN THỊ TRÊN DESKTOP */}
       {!isMobile && (
         <div style={{
@@ -474,6 +544,14 @@ const LoginPage = () => {
           Copyright © MerapLion
         </div>
       </Card>
+
+      {/* Referral Modal for New Users */}
+      <ReferralModal
+        visible={showReferralModal}
+        onClose={handleReferralModalClose}
+        userPhone={phoneNumber}
+        userMaKhDms={userMaKhDms}
+      />
     </div>
     </>
   );

@@ -6,6 +6,8 @@
  * 2. Activities - Login logs & thời gian trên web
  */
 
+import apiMonitor from './apiMonitor';
+
 class GoogleSheetsService {
   constructor() {
     // Data sync URL (survey, activity, rewards)
@@ -187,6 +189,14 @@ class GoogleSheetsService {
       return true;
     } catch (error) {
       console.error('Network error syncing to Google Sheets:', error);
+      
+      // Ghi nhận lỗi vào apiMonitor
+      apiMonitor.recordError({
+        message: 'Failed to sync to Google Sheets: ' + error.message,
+        status: error.status || 'NETWORK_ERROR',
+        originalError: error
+      });
+      
       throw error;
     }
   }
@@ -224,6 +234,14 @@ class GoogleSheetsService {
           'Content-Type': 'text/plain'
         },
         body: JSON.stringify(data)
+      }).catch(error => {
+        // Ghi nhận lỗi vào apiMonitor
+        apiMonitor.recordError({
+          message: 'Failed to save admin config: ' + error.message,
+          status: error.status || 'NETWORK_ERROR',
+          originalError: error
+        });
+        throw error;
       });
 
       // With no-cors mode, we assume success if no error was thrown
@@ -292,7 +310,13 @@ class GoogleSheetsService {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const error = new Error(`HTTP error! status: ${response.status}`);
+        error.status = response.status;
+        
+        // Ghi nhận lỗi vào apiMonitor
+        apiMonitor.recordError(error);
+        
+        throw error;
       }
 
       const result = await response.json();
@@ -306,6 +330,14 @@ class GoogleSheetsService {
       }
     } catch (error) {
       console.error('❌ Failed to load admin config:', error);
+      
+      // Ghi nhận lỗi vào apiMonitor
+      apiMonitor.recordError({
+        message: 'Failed to load admin config: ' + error.message,
+        status: error.status || 'NETWORK_ERROR',
+        originalError: error
+      });
+      
       return null;
     }
   }

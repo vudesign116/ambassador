@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, List, Button, Spin, Typography, Space, Tag, Statistic, Empty, Alert } from 'antd';
-import { ArrowLeftOutlined, TrophyOutlined } from '@ant-design/icons';
+import { Card, List, Button, Spin, Typography, Space, Tag, Statistic, Empty, Alert, Row, Col } from 'antd';
+import { ArrowLeftOutlined, TrophyOutlined, FireOutlined, GiftOutlined, PlayCircleOutlined, RocketOutlined } from '@ant-design/icons';
 import * as PointsManager from '../utils/pointsManager';
-import RadarChart from '../components/RadarChart';
 import videoFileIcon from '../images/video-file.png';
 import pdfFileIcon from '../images/pdf-file.png';
 
@@ -15,6 +14,10 @@ const PointHistoryPage = () => {
   const [categoryStats, setCategoryStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [referralPoints, setReferralPoints] = useState(0);
+  const [streakBonus, setStreakBonus] = useState(0);
+  const [videoPoints, setVideoPoints] = useState(0);
+  const [miniGamePoints, setMiniGamePoints] = useState(0);
 
   // Sample data for demo - will be replaced by API call
   const sampleHistory = [
@@ -92,14 +95,16 @@ const PointHistoryPage = () => {
       });
     }
 
-    // Count points from API history
+    // Count points from API history (use effective_point from new API)
     if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
       data.lich_su_diem.forEach(item => {
         const category = documentCategoryMap[item.document_id];
         if (category) {
           const categoryName = categoryMap[category];
           if (categoryName) {
-            categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (item.point || 0);
+            // Use effective_point from new API structure
+            const points = item.effective_point || item.point || 0;
+            categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
           }
         }
       });
@@ -167,13 +172,12 @@ const PointHistoryPage = () => {
         return;
       }
 
-      // Call API to get point history
-      const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/nvbc_get_point/?phone=${phoneNumber}`;
+      // Call API to get point history (new endpoint)
+      const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          'Content-Type': 'application/json'
         }
       });
 
@@ -194,7 +198,63 @@ const PointHistoryPage = () => {
       // Get combined history (API + Session)
       const history = PointsManager.getCombinedHistory();
 
-      setHistoryData(history);
+      // Calculate video & document points
+      let totalVideoPoints = 0;
+      if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
+        totalVideoPoints = data.lich_su_diem.reduce((sum, item) => {
+          return sum + (item.effective_point || item.point || 0);
+        }, 0);
+      }
+      setVideoPoints(totalVideoPoints);
+
+      // TODO: Mini game points from API when available
+      setMiniGamePoints(0);
+
+      // Add Streak bonus history from streak_last_7_days
+      const streakHistory = [];
+      let totalStreakBonus = 0;
+      if (data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
+        data.streak_last_7_days.forEach(day => {
+          if (day.bonus_point > 0) {
+            totalStreakBonus += day.bonus_point;
+            streakHistory.push({
+              document_id: 'streak_' + day.date,
+              document_name: 'Điểm Duy trì (Streak)',
+              inserted_at: day.date + 'T23:59:59',
+              effective_point: day.bonus_point,
+              point: day.bonus_point,
+              type: 'streak',
+              streak_length: day.streak_length
+            });
+          }
+        });
+      }
+      setStreakBonus(totalStreakBonus);
+
+      // Add Referral history
+      const referralHistory = [];
+      let totalReferral = 0;
+      if (data.referral_point && data.referral_point > 0) {
+        totalReferral = data.referral_point;
+        // Get referral date from referral_month_regis if available
+        const referralDate = data.referral_month_regis || new Date().toISOString();
+        referralHistory.push({
+          document_id: 'referral',
+          document_name: 'Điểm Giới thiệu',
+          inserted_at: referralDate,
+          effective_point: data.referral_point,
+          point: data.referral_point,
+          type: 'referral'
+        });
+      }
+      setReferralPoints(totalReferral);
+
+      // Combine all history and sort by date (newest first)
+      const combinedHistory = [...history, ...streakHistory, ...referralHistory].sort((a, b) => {
+        return new Date(b.inserted_at) - new Date(a.inserted_at);
+      });
+
+      setHistoryData(combinedHistory);
 
       // Calculate category stats for RadarChart
       calculateCategoryStats(data);
@@ -224,17 +284,34 @@ const PointHistoryPage = () => {
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
+  const formatWatchDuration = (seconds) => {
+    if (!seconds || seconds < 0) return '0 giây';
+    
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (minutes === 0) {
+      return `${remainingSeconds} giây`;
+    } else if (remainingSeconds === 0) {
+      return `${minutes} phút`;
+    } else {
+      return `${minutes}p ${remainingSeconds}s`;
+    }
+  };
+
   const getTotalPoints = () => {
-    // Use PointsManager to get accurate total
-    return PointsManager.getTotalPoints();
+    // Use PointsManager to get document points + add referral and streak bonus
+    const documentPoints = PointsManager.getTotalPoints();
+    return documentPoints + referralPoints + streakBonus;
   };
 
   if (loading) {
     return (
       <div className="full-height point-history-page-bg" style={{ paddingBottom: '80px' }}>
-        <div className="common-header">
+        <div className="common-header" style={{ backgroundColor: '#00a99d', color: 'white', display: 'flex', alignItems: 'center', padding: '10px 20px' }}>
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')} style={{ color: 'white' }} />
           <Title level={4} style={{ color: 'white', margin: 0, flex: 1, textAlign: 'center' }}>Lịch sử điểm</Title>
+          <div style={{ width: '40px' }} />
         </div>
         <div className="container" style={{ paddingTop: 24 }}>
           <Card>
@@ -253,9 +330,10 @@ const PointHistoryPage = () => {
   if (error) {
     return (
       <div className="full-height point-history-page-bg" style={{ paddingBottom: '80px' }}>
-        <div className="common-header">
+        <div className="common-header" style={{ backgroundColor: '#00a99d', color: 'white', display: 'flex', alignItems: 'center', padding: '10px 20px' }}>
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')} style={{ color: 'white' }} />
           <Title level={4} style={{ color: 'white', margin: 0, flex: 1, textAlign: 'center' }}>Lịch sử điểm</Title>
+          <div style={{ width: '40px' }} />
         </div>
         <div className="container" style={{ paddingTop: 24 }}>
           <Alert
@@ -279,6 +357,7 @@ const PointHistoryPage = () => {
       <div className="common-header" style={{ backgroundColor: '#00a99d', color: 'white', display: 'flex', alignItems: 'center', padding: '10px 20px' }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')} style={{ color: 'white' }} />
         <Title level={4} style={{ color: 'white', margin: 0, flex: 1, textAlign: 'center' }}>Lịch sử điểm</Title>
+        <div style={{ width: '40px' }} />
       </div>
 
       <div className="container" style={{ paddingTop: 24 }}>
@@ -289,23 +368,69 @@ const PointHistoryPage = () => {
             <Text type="secondary">Tổng điểm tích lũy</Text>
             <Statistic 
               value={getTotalPoints()} 
-              valueStyle={{ color: '#3f8600', fontSize: 36 }}
+              valueStyle={{ color: '#3f8600', fontSize: 36, fontWeight: 'bold' }}
             />
             <Text type="secondary" style={{ fontSize: 13 }}>
-              Từ {historyData.length} lượt xem tài liệu
+              Từ {historyData.length} lượt xem tài liệu + duy trì + giới thiệu + mini game
             </Text>
           </Space>
         </Card>
 
         {/* Radar Chart - Category Stats */}
-        {categoryStats.length > 0 && (
-          <Card 
-            style={{ marginBottom: 20 }}
-            bodyStyle={{ padding: '20px 10px' }}
-          >
-            <RadarChart userScore={getTotalPoints()} categoryStats={categoryStats} />
-          </Card>
-        )}
+        <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
+          <Col xs={12} sm={12} md={6}>
+            <Card style={{ textAlign: 'center', height: '100%' }}>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <PlayCircleOutlined style={{ fontSize: 28, color: '#1890ff' }} />
+                <Text type="secondary" style={{ fontSize: 12 }}>Điểm xem video & tài liệu</Text>
+                <Statistic 
+                  value={videoPoints} 
+                  valueStyle={{ color: '#1890ff', fontSize: 24, fontWeight: 'bold' }}
+                  suffix="đ"
+                />
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} md={6}>
+            <Card style={{ textAlign: 'center', height: '100%' }}>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <FireOutlined style={{ fontSize: 28, color: '#ff4d4f' }} />
+                <Text type="secondary" style={{ fontSize: 12 }}>Điểm duy trì</Text>
+                <Statistic 
+                  value={streakBonus} 
+                  valueStyle={{ color: '#ff4d4f', fontSize: 24, fontWeight: 'bold' }}
+                  suffix="đ"
+                />
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} md={6}>
+            <Card style={{ textAlign: 'center', height: '100%' }}>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <GiftOutlined style={{ fontSize: 28, color: '#52c41a' }} />
+                <Text type="secondary" style={{ fontSize: 12 }}>Điểm giới thiệu</Text>
+                <Statistic 
+                  value={referralPoints} 
+                  valueStyle={{ color: '#52c41a', fontSize: 24, fontWeight: 'bold' }}
+                  suffix="đ"
+                />
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={12} sm={12} md={6}>
+            <Card style={{ textAlign: 'center', height: '100%' }}>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <RocketOutlined style={{ fontSize: 28, color: '#faad14' }} />
+                <Text type="secondary" style={{ fontSize: 12 }}>Điểm mini game</Text>
+                <Statistic 
+                  value={miniGamePoints} 
+                  valueStyle={{ color: '#faad14', fontSize: 24, fontWeight: 'bold' }}
+                  suffix="đ"
+                />
+              </Space>
+            </Card>
+          </Col>
+        </Row>
 
         {/* History List */}
         <Card title="Lịch sử chi tiết">
@@ -328,31 +453,59 @@ const PointHistoryPage = () => {
                 <List.Item
                   extra={
                     <Text strong style={{ color: '#3f8600', fontSize: 16 }}>
-                      +{item.point}
+                      +{item.effective_point || item.point || 0}
                     </Text>
                   }
                 >
                   <List.Item.Meta
                     avatar={
-                      item.type === 'video' ? (
+                      item.type === 'streak' ? (
+                        <FireOutlined style={{ fontSize: '32px', color: '#ff4d4f' }} />
+                      ) : item.type === 'referral' ? (
+                        <GiftOutlined style={{ fontSize: '32px', color: '#52c41a' }} />
+                      ) : item.type === 'video' ? (
                         <img src={videoFileIcon} alt="Video" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
                       ) : (
                         <img src={pdfFileIcon} alt="PDF" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
                       )
                     }
                     title={
-                      <Text strong style={{ color: '#333' }}>
-                        {item.document_name}
-                      </Text>
+                      <Space size={8}>
+                        <Text strong style={{ color: '#333' }}>
+                          {item.document_name}
+                        </Text>
+                        {(item.type === 'streak' || item.type === 'referral') && (
+                          <Tag className="new-label-blink">
+                            NEW
+                          </Tag>
+                        )}
+                      </Space>
                     }
                     description={
-                      <Space size="small">
-                        <Tag color={item.type === 'video' ? 'blue' : 'orange'}>
-                          {item.type === 'video' ? 'VIDEO' : 'PDF'}
-                        </Tag>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {formatDate(item.inserted_at)}
-                        </Text>
+                      <Space size="small" direction="vertical" style={{ width: '100%' }}>
+                        <Space size="small">
+                          {item.type === 'streak' ? (
+                            <Tag color="red" icon={<FireOutlined />}>
+                              STREAK {item.streak_length || 0} NGÀY
+                            </Tag>
+                          ) : item.type === 'referral' ? (
+                            <Tag color="green" icon={<GiftOutlined />}>
+                              GIỚI THIỆU
+                            </Tag>
+                          ) : (
+                            <Tag color={item.type === 'video' ? 'blue' : 'orange'}>
+                              {item.type === 'video' ? 'VIDEO' : 'PDF'}
+                            </Tag>
+                          )}
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {formatDate(item.inserted_at)}
+                          </Text>
+                        </Space>
+                        {item.watch_duration_seconds && (
+                          <Tag color="green" icon={<TrophyOutlined />}>
+                            Xem: {formatWatchDuration(item.watch_duration_seconds)}
+                          </Tag>
+                        )}
                       </Space>
                     }
                   />

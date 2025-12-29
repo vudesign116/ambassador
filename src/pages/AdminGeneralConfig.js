@@ -27,7 +27,8 @@ const AdminGeneralConfig = () => {
     } else {
       // Default values
       form.setFieldsValue({
-        pointsViewDuration: 60,
+        pointsViewDuration50: 60,    // 50% points at 60s
+        pointsViewDuration100: 120,  // 100% points at 120s
         reviewCooldownMinutes: 5,
         apiEndpoint: '',
         rewardApiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/'
@@ -43,8 +44,12 @@ const AdminGeneralConfig = () => {
       await saveConfig('admin_general_config', values);
       
       // Update the actual app configuration (these are runtime settings, keep in localStorage)
-      localStorage.setItem('app_points_view_duration', values.pointsViewDuration.toString());
+      localStorage.setItem('app_points_view_duration_50', values.pointsViewDuration50.toString());
+      localStorage.setItem('app_points_view_duration_100', values.pointsViewDuration100.toString());
       localStorage.setItem('app_review_cooldown', (values.reviewCooldownMinutes * 60 * 1000).toString());
+      
+      // Backward compatibility - keep old key for apps that still use it
+      localStorage.setItem('app_points_view_duration', values.pointsViewDuration100.toString());
       
       // API endpoint chỉ dùng để POST lịch sử điểm lên server, không ảnh hưởng các API khác
       if (values.apiEndpoint) {
@@ -76,17 +81,63 @@ const AdminGeneralConfig = () => {
 
       <Form form={form} layout="vertical">
         <Card title="⏱️ Cấu hình thời gian" style={{ marginBottom: 24 }}>
+          <Alert
+            message="📊 Hệ thống tính điểm theo 2 mốc thời gian"
+            description={
+              <div>
+                <p style={{ marginBottom: 8 }}>
+                  • <strong>Mốc 50%:</strong> Xem đủ thời gian này → Nhận 50% điểm<br/>
+                  • <strong>Mốc 100%:</strong> Xem đủ thời gian này → Nhận 100% điểm
+                </p>
+                <p style={{ margin: 0, fontSize: 12, color: '#666' }}>
+                  Ví dụ: Tài liệu có 4 điểm, xem 60s được 2 điểm (50%), xem 120s được 4 điểm (100%)
+                </p>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
           <Form.Item
-            label="Thời gian xem để tính điểm (giây)"
-            name="pointsViewDuration"
-            rules={[{ required: true, message: 'Vui lòng nhập thời gian' }]}
+            label="Thời gian xem để nhận 50% điểm (giây)"
+            name="pointsViewDuration50"
+            rules={[
+              { required: true, message: 'Vui lòng nhập thời gian' },
+              { type: 'number', min: 1, message: 'Phải lớn hơn 0' }
+            ]}
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Người dùng cần xem tài liệu trong {form.getFieldValue('pointsViewDuration') || 60} giây để nhận 100% điểm
+                Người dùng xem {form.getFieldValue('pointsViewDuration50') || 60} giây → Nhận 50% điểm
               </Text>
             }
           >
             <InputNumber min={1} style={{ width: '100%' }} placeholder="60" />
+          </Form.Item>
+
+          <Form.Item
+            label="Thời gian xem để nhận 100% điểm (giây)"
+            name="pointsViewDuration100"
+            rules={[
+              { required: true, message: 'Vui lòng nhập thời gian' },
+              { type: 'number', min: 1, message: 'Phải lớn hơn 0' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const duration50 = getFieldValue('pointsViewDuration50');
+                  if (!value || !duration50 || value >= duration50) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('Mốc 100% phải >= mốc 50%'));
+                },
+              }),
+            ]}
+            extra={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Người dùng xem {form.getFieldValue('pointsViewDuration100') || 120} giây → Nhận 100% điểm
+              </Text>
+            }
+          >
+            <InputNumber min={1} style={{ width: '100%' }} placeholder="120" />
           </Form.Item>
 
           <Form.Item

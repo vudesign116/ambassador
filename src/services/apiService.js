@@ -48,9 +48,11 @@ class ApiService {
   // Get user points and reward status
   async getUserPoints(phoneNumber) {
     try {
-      const response = await fetch(`${this.baseURL}/nvbc_get_point/?phone=${phoneNumber}`, {
+      const response = await fetch(`${this.baseURL}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`, {
         method: 'GET',
-        headers: this.getAuthHeaders()
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {

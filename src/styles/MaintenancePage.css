@@ -1,0 +1,299 @@
+.maintenance-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.maintenance-page::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255,255,255,0.1) 0%, transparent 50%);
+  animation: moveBackground 15s ease-in-out infinite;
+}
+
+@keyframes moveBackground {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(30px, 30px) rotate(5deg);
+  }
+}
+
+.maintenance-container {
+  max-width: 650px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.maintenance-content {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 24px;
+  padding: 60px 40px;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  backdrop-filter: blur(20px);
+  text-align: center;
+}
+
+/* Icon Animation */
+.icon-wrapper {
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.maintenance-icon {
+  width: 150px;
+  height: 150px;
+  filter: drop-shadow(0 10px 20px rgba(102, 126, 234, 0.3));
+}
+
+.wrench-group {
+  animation: wrenchRotate 2s ease-in-out infinite;
+  transform-origin: 130px 65px;
+}
+
+.gear-group {
+  animation: gearRotate 3s linear infinite;
+  transform-origin: 70px 130px;
+}
+
+@keyframes wrenchRotate {
+  0%, 100% {
+    transform: rotate(-15deg);
+  }
+  50% {
+    transform: rotate(15deg);
+  }
+}
+
+@keyframes gearRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Typography */
+.maintenance-title {
+  color: #2c3e50;
+  margin: 0 0 16px 0 !important;
+  font-weight: 800;
+  font-size: 36px !important;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.maintenance-subtitle {
+  font-size: 18px;
+  color: #4a5568;
+  margin-bottom: 8px !important;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.maintenance-message {
+  font-size: 16px;
+  color: #718096;
+  margin-bottom: 40px !important;
+  line-height: 1.6;
+}
+
+/* Tips Container */
+.tips-container {
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border-radius: 16px;
+  padding: 30px 20px;
+  margin-bottom: 40px;
+  border: 1px solid #e2e8f0;
+}
+
+.tip-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  font-size: 15px;
+  color: #4a5568;
+  transition: transform 0.2s ease;
+}
+
+.tip-item:hover {
+  transform: translateX(5px);
+}
+
+.tip-icon {
+  font-size: 24px;
+  min-width: 30px;
+  text-align: center;
+}
+
+.tip-item:not(:last-child) {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Buttons */
+.button-group {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+}
+
+.button-group button {
+  min-width: 160px;
+  height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-retry {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: none !important;
+  color: white !important;
+}
+
+.btn-retry:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4) !important;
+}
+
+.btn-home {
+  background: white !important;
+  border: 2px solid #e2e8f0 !important;
+  color: #4a5568 !important;
+}
+
+.btn-home:hover {
+  transform: translateY(-3px);
+  border-color: #cbd5e0 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Footer */
+.maintenance-footer {
+  text-align: center;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.footer-text {
+  color: #718096;
+  margin: 0 !important;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .maintenance-content {
+    padding: 40px 24px;
+  }
+
+  .maintenance-icon {
+    width: 120px;
+    height: 120px;
+  }
+
+  .maintenance-title {
+    font-size: 28px !important;
+  }
+
+  .maintenance-subtitle {
+    font-size: 16px;
+  }
+
+  .maintenance-message {
+    font-size: 14px;
+  }
+
+  .tips-container {
+    padding: 20px 16px;
+  }
+
+  .tip-item {
+    font-size: 14px;
+  }
+
+  .tip-icon {
+    font-size: 20px;
+    min-width: 24px;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .button-group button {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .footer-text {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .maintenance-content {
+    padding: 32px 20px;
+    border-radius: 16px;
+  }
+
+  .maintenance-title {
+    font-size: 24px !important;
+  }
+
+  .icon-wrapper {
+    margin-bottom: 20px;
+  }
+
+  .maintenance-icon {
+    width: 100px;
+    height: 100px;
+  }
+}
+
+/* Loading animation for retry */
+.ant-btn-loading::before {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Smooth entrance animation */
+.maintenance-content {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

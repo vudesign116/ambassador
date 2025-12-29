@@ -8,34 +8,37 @@ const RadarChart = ({ userScore, categoryStats = [] }) => {
     { name: 'Bệnh học', value: 0 },
     { name: 'Sổ tay thầy thuốc', value: 0 },
     { name: 'Tư vấn chuyên gia', value: 0 },
-    { name: 'Mini Game', value: 0 }
+    { name: 'Mini Game', value: 0 },
+    { name: 'Điểm Giới thiệu', value: 0 },
+    { name: 'Điểm Duy trì', value: 0 }
   ];
 
   // Use categoryStats from API or default
   let categories = categoryStats.length > 0 ? categoryStats : defaultCategories;
   
-  // Ensure we have exactly 6 categories for hexagon
-  if (categories.length < 6) {
-    const missingCount = 6 - categories.length;
+  // Ensure we have exactly 8 categories for octagon
+  const targetCategoryCount = 8;
+  if (categories.length < targetCategoryCount) {
+    const missingCount = targetCategoryCount - categories.length;
     for (let i = 0; i < missingCount; i++) {
       categories.push({ name: `Category ${i + 1}`, value: 0, maxPoints: 1 });
     }
-  } else if (categories.length > 6) {
-    categories = categories.slice(0, 6);
+  } else if (categories.length > targetCategoryCount) {
+    categories = categories.slice(0, targetCategoryCount);
   }
 
-  // Find max value for visualization scaling (use highest value for consistent pentagon shape)
+  // Find max value for visualization scaling (use highest value for consistent shape)
   const maxValueForScale = Math.max(...categories.map(c => c.value), 1);
 
-  const size = 240; // Tăng từ 200 lên 240 để có thêm không gian cho labels
+  const size = 260; // Tăng size để chứa 8 cạnh
   const center = size / 2;
-  const radius = 70; // Giảm từ 75 xuống 70 để cân đối với size mới
+  const radius = 75; // Radius cho octagon
 
-  // Calculate hexagon points (6 sides)
-  const getHexagonPoints = (scale = 1) => {
+  // Calculate octagon points (8 sides)
+  const getOctagonPoints = (scale = 1) => {
     const points = [];
-    for (let i = 0; i < 6; i++) {
-      const angle = (i * 60 - 90) * (Math.PI / 180); // Start from top, 60 degrees per side
+    for (let i = 0; i < targetCategoryCount; i++) {
+      const angle = (i * (360 / targetCategoryCount) - 90) * (Math.PI / 180); // 45 degrees per side for octagon
       const x = center + Math.cos(angle) * radius * scale;
       const y = center + Math.sin(angle) * radius * scale;
       points.push(`${x},${y}`);
@@ -47,7 +50,7 @@ const RadarChart = ({ userScore, categoryStats = [] }) => {
   const getDataPoints = () => {
     const points = [];
     categories.forEach((category, index) => {
-      const angle = (index * 60 - 90) * (Math.PI / 180); // 60 degrees for hexagon
+      const angle = (index * (360 / targetCategoryCount) - 90) * (Math.PI / 180); // 45 degrees for octagon
       const scale = category.value / maxValueForScale; // Normalize based on max value for visualization
       const x = center + Math.cos(angle) * radius * scale;
       const y = center + Math.sin(angle) * radius * scale;
@@ -67,11 +70,11 @@ const RadarChart = ({ userScore, categoryStats = [] }) => {
       animation: 'radarChartFadeIn 1s ease-out'
     }}>
       <svg width={size} height={size}>
-        {/* Background hexagon levels */}
+        {/* Background octagon levels */}
         {[0.2, 0.4, 0.6, 0.8, 1.0].map((scale, index) => (
           <polygon
             key={index}
-            points={getHexagonPoints(scale)}
+            points={getOctagonPoints(scale)}
             fill="none"
             stroke="#E0F7FA"
             strokeWidth="1"
@@ -84,7 +87,7 @@ const RadarChart = ({ userScore, categoryStats = [] }) => {
 
         {/* Axis lines */}
         {categories.map((_, index) => {
-          const angle = (index * 60 - 90) * (Math.PI / 180); // 60 degrees for hexagon
+          const angle = (index * (360 / 8) - 90) * (Math.PI / 180); // 45 degrees for octagon
           const x = center + Math.cos(angle) * radius;
           const y = center + Math.sin(angle) * radius;
           return (
@@ -115,9 +118,9 @@ const RadarChart = ({ userScore, categoryStats = [] }) => {
           }}
         />
 
-        {/* Outer hexagon */}
+        {/* Outer octagon */}
         <polygon
-          points={getHexagonPoints(1)}
+          points={getOctagonPoints(1)}
           fill="none"
           stroke="#4DD0E1"
           strokeWidth="2"
@@ -127,14 +130,14 @@ const RadarChart = ({ userScore, categoryStats = [] }) => {
         />
       </svg>
 
-      {/* Category labels at hexagon points */}
+      {/* Category labels at octagon points */}
       {categories.map((category, index) => {
-        const angle = (index * 60 - 90) * (Math.PI / 180); // 60 degrees for hexagon
-        const labelRadius = radius + 20; // Tăng từ 15 lên 20 để labels xa hơn
+        const angle = (index * (360 / 8) - 90) * (Math.PI / 180); // 45 degrees for octagon
+        const labelRadius = radius + 30; // Tăng từ 22 lên 30 để labels xa hơn
         const x = center + Math.cos(angle) * labelRadius;
         const y = center + Math.sin(angle) * labelRadius;
         
-        // Calculate percentage based on total points of all 6 categories (relative distribution)
+        // Calculate percentage based on total points of all categories (relative distribution)
         const totalPoints = categories.reduce((sum, cat) => sum + (cat.value || 0), 0);
         const percentage = totalPoints > 0 ? Math.round((category.value / totalPoints) * 100) : 0;
 
@@ -151,14 +154,33 @@ const RadarChart = ({ userScore, categoryStats = [] }) => {
               textAlign: 'center',
               transform: 'translate(-50%, -50%)',
               whiteSpace: 'nowrap',
-              maxWidth: '65px',
-              lineHeight: '1.2',
+              maxWidth: '70px',
+              lineHeight: '1.3',
               animation: `radarLabelFade 0.5s ease-out ${index * 0.1 + 1.5}s both`
             }}
           >
-            <div style={{ fontWeight: '600', marginBottom: '2px' }}>{category.name}</div>
+            <div style={{ fontWeight: '600', marginBottom: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+              {/* NEW label for Điểm Giới thiệu and Điểm Duy trì */}
+              {(category.name === 'Điểm Giới thiệu' || category.name === 'Điểm Duy trì') && (
+                <span style={{
+                  fontSize: '7px',
+                  padding: '1px 3px',
+                  backgroundColor: '#ff4d4f',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  borderRadius: '2px',
+                  animation: 'blink-red 1.5s ease-in-out infinite'
+                }}>
+                  NEW
+                </span>
+              )}
+              <span>{category.name}</span>
+            </div>
             <div style={{ fontSize: '10px', color: 'var(--primary-color)', fontWeight: 'bold' }}>
-              {category.value} điểm ({percentage}%)
+              {category.value} điểm
+            </div>
+            <div style={{ fontSize: '9px', color: '#999', fontWeight: '600' }}>
+              ({percentage}%)
             </div>
             {/* Show "Sắp diễn ra" label for Mini Game */}
             {category.name === 'Mini Game' && (

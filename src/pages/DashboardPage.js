@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, List, Button, Dropdown, Modal, Spin, Typography, Space, Badge, Empty } from 'antd';
-import { HomeOutlined, AppstoreOutlined, MenuOutlined, HistoryOutlined, GiftOutlined, LogoutOutlined, PlayCircleOutlined, RightOutlined } from '@ant-design/icons';
+import { Card, List, Button, Dropdown, Modal, Spin, Typography, Space, Badge, Empty, Tag, Row, Col, Statistic } from 'antd';
+import { HomeOutlined, AppstoreOutlined, MenuOutlined, HistoryOutlined, GiftOutlined, LogoutOutlined, PlayCircleOutlined, RightOutlined, FireOutlined, RocketOutlined } from '@ant-design/icons';
 import UserBadge from '../components/UserBadge';
 import RadarChart from '../components/RadarChart';
 import CelebrationAnimation from '../components/CelebrationAnimation';
@@ -36,6 +36,15 @@ const DashboardPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const userName = localStorage.getItem('userName') || 'Phạm Thị Hương';
   const phoneNumber = localStorage.getItem('phoneNumber');
+  
+  // Point breakdown for 4 blocks
+  const [videoPoints, setVideoPoints] = useState(0);
+  const [streakPoints, setStreakPoints] = useState(0);
+  const [referralPoints, setReferralPoints] = useState(0);
+  const [miniGamePoints, setMiniGamePoints] = useState(0);
+  
+  // Streak data for timeline
+  const [streakData, setStreakData] = useState([]);
   
   // Survey functionality
   const { activeSurveys, loading: surveysLoading } = useActiveSurveys(phoneNumber);
@@ -122,13 +131,12 @@ const DashboardPage = () => {
         // Clear the update flag if it exists
         localStorage.removeItem('points_updated');
 
-        // Use centralized API service
-        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/nvbc_get_point/?phone=${phoneNumber}`;
+        // ✅ Use new API endpoint (no Authorization needed)
+        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           }
         });
 
@@ -145,8 +153,39 @@ const DashboardPage = () => {
             PointsManager.markAPIHistoryAsViewed(apiHistory);
           }
           
-          // Get total points (API + Session)
-          const totalPoints = PointsManager.getTotalPoints();
+          // Get total points (API + Session + Referral + Streak)
+          let totalPoints = PointsManager.getTotalPoints();
+          
+          // Calculate video/document points
+          let totalVideoPoints = 0;
+          if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
+            totalVideoPoints = data.lich_su_diem.reduce((sum, item) => {
+              return sum + (item.effective_point || item.point || 0);
+            }, 0);
+          }
+          setVideoPoints(totalVideoPoints);
+          
+          // Add referral points
+          let totalReferralPoints = 0;
+          if (data && typeof data.referral_point === 'number') {
+            totalReferralPoints = data.referral_point;
+            totalPoints += totalReferralPoints;
+          }
+          setReferralPoints(totalReferralPoints);
+          
+          // Add streak bonus points
+          let totalStreakBonus = 0;
+          if (data && data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
+            totalStreakBonus = data.streak_last_7_days.reduce((sum, day) => sum + (day.bonus_point || 0), 0);
+            totalPoints += totalStreakBonus;
+            // Save streak data for timeline display
+            setStreakData(data.streak_last_7_days);
+          }
+          setStreakPoints(totalStreakBonus);
+          
+          // Mini game points (TODO: from API when available)
+          setMiniGamePoints(0);
+          
           setUserScore(totalPoints);
 
           // Calculate points by category from contentlist and lich_su_diem
@@ -154,7 +193,7 @@ const DashboardPage = () => {
             const categoryPoints = {};
             const categoryMaxPoints = {}; // Track max possible points per category
             
-            // Initialize categories
+            // Initialize categories (including new Referral and Streak)
             const categoryMap = {
               'THÔNG TIN VỀ MERAPLION': 'MerapLion',
               'THÔNG TIN SẢN PHẦM': 'Sản phẩm',
@@ -170,6 +209,12 @@ const DashboardPage = () => {
               // Set default max points to 1 to avoid division by zero
               categoryMaxPoints[cat] = 1;
             });
+
+            // Add Referral and Streak categories
+            categoryPoints['Điểm Giới thiệu'] = 0;
+            categoryMaxPoints['Điểm Giới thiệu'] = 100; // Assume max 100 for referral
+            categoryPoints['Điểm Duy trì'] = 0;
+            categoryMaxPoints['Điểm Duy trì'] = 50; // Assume max 50 for streak
 
             // Create a map of document_id to category from contentlist
             // AND calculate max points per category
@@ -191,17 +236,33 @@ const DashboardPage = () => {
               });
             }
 
-            // Count points from API history using document_id to find category
+            // Count points from API history using effective_point (NEW API STRUCTURE)
             if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
               data.lich_su_diem.forEach(item => {
                 const category = documentCategoryMap[item.document_id];
                 if (category) {
                   const categoryName = categoryMap[category];
                   if (categoryName) {
-                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (item.point || 0);
+                    // Use effective_point from new API structure
+                    const points = item.effective_point || item.point || 0;
+                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
                   }
                 }
               });
+            }
+
+            // Calculate Referral Points from API
+            if (data.referral_point && typeof data.referral_point === 'number') {
+              categoryPoints['Điểm Giới thiệu'] = data.referral_point;
+            }
+
+            // Calculate Streak Points from streak_last_7_days
+            if (data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
+              let totalStreakPoints = 0;
+              data.streak_last_7_days.forEach(day => {
+                totalStreakPoints += (day.bonus_point || 0);
+              });
+              categoryPoints['Điểm Duy trì'] = totalStreakPoints;
             }
 
             // Also count points from session (earned points)
@@ -211,7 +272,9 @@ const DashboardPage = () => {
               if (item.category) {
                 const categoryName = categoryMap[item.category];
                 if (categoryName) {
-                  categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (item.point || 0);
+                  // Use effective_point if available, fallback to point
+                  const points = item.effective_point || item.point || 0;
+                  categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
                 }
               } else if (item.document_id) {
                 // Fallback: try to find category from document_id
@@ -219,7 +282,8 @@ const DashboardPage = () => {
                 if (category) {
                   const categoryName = categoryMap[category];
                   if (categoryName) {
-                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (item.point || 0);
+                    const points = item.effective_point || item.point || 0;
+                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
                   }
                 }
               }
@@ -232,8 +296,8 @@ const DashboardPage = () => {
               maxPoints: categoryMaxPoints[name] || 1 // Avoid division by zero
             }));
 
-            // Ensure Mini Game always appears in radar chart (even with 0 points)
-            const allCategories = Object.values(categoryMap);
+            // Ensure all categories appear in radar chart (even with 0 points)
+            const allCategories = [...Object.values(categoryMap), 'Điểm Giới thiệu', 'Điểm Duy trì'];
             allCategories.forEach(categoryName => {
               if (!stats.find(s => s.name === categoryName)) {
                 stats.push({
@@ -268,16 +332,17 @@ const DashboardPage = () => {
                   isComingSoon: true // Flag for upcoming feature
                 },
                 {
+                  title: 'Thông tin về MerapLion',
+                  apiCategory: 'THÔNG TIN VỀ MERAPLION',
+                  icon: iconInfo,
+                  category: 'thong-tin-ve-meraplion',
+                  isNew: true // Flag for NEW label
+                },
+                {
                   title: 'Thông tin sản phẩm',
                   apiCategory: 'THÔNG TIN SẢN PHẦM',
                   icon: iconHospital,
                   category: 'thong-tin-san-pham'
-                },
-                {
-                  title: 'Thông tin về MerapLion',
-                  apiCategory: 'THÔNG TIN VỀ MERAPLION',
-                  icon: iconInfo,
-                  category: 'thong-tin-ve-meraplion'
                 },
                 {
                   title: 'Thông tin bệnh học',
@@ -329,7 +394,8 @@ const DashboardPage = () => {
                   points: pointRange,
                   icon: task.icon,
                   completed: false,
-                  category: task.category
+                  category: task.category,
+                  isNew: task.isNew // Preserve NEW flag
                 };
               });
 
@@ -337,12 +403,12 @@ const DashboardPage = () => {
             } else {
               // Fallback to default tasks
               setDailyTasks([
+                { title: 'Mini Game', points: 'Sắp diễn ra', icon: iconTips, completed: false, category: 'mini-game', isComingSoon: true },
+                { title: 'Thông tin về MerapLion', points: '10 điểm', icon: iconInfo, completed: false, category: 'thong-tin-ve-meraplion', isNew: true },
                 { title: 'Thông tin sản phẩm', points: '1-2 điểm', icon: iconHospital, completed: false, category: 'thong-tin-san-pham' },
-                { title: 'Thông tin về MerapLion', points: '2 điểm', icon: iconInfo, completed: false, category: 'thong-tin-ve-meraplion' },
                 { title: 'Thông tin bệnh học', points: '1 điểm', icon: iconDna, completed: false, category: 'thong-tin-benh-hoc' },
                 { title: 'Sổ tay người thầy thuốc', points: '1 điểm', icon: iconBook, completed: false, category: 'so-tay-nguoi-thay-thuoc' },
-                { title: 'Tư vấn cùng chuyên gia', points: '1 điểm', icon: iconBrain, completed: false, category: 'tu-van-cung-chuyen-gia' },
-                { title: 'Mini Game', points: 'Sắp diễn ra', icon: iconTips, completed: false, category: 'mini-game', isComingSoon: true }
+                { title: 'Tư vấn cùng chuyên gia', points: '1 điểm', icon: iconBrain, completed: false, category: 'tu-van-cung-chuyen-gia' }
               ]);
             }
           }
@@ -352,8 +418,8 @@ const DashboardPage = () => {
         // Set default tasks on error
         setDailyTasks([
           { title: 'Mini Game', points: 'Sắp diễn ra', icon: iconTips, completed: false, category: 'mini-game', isComingSoon: true },
+          { title: 'Thông tin về MerapLion', points: '10 điểm', icon: iconInfo, completed: false, category: 'thong-tin-ve-meraplion', isNew: true },
           { title: 'Thông tin sản phẩm', points: '1-2 điểm', icon: iconHospital, completed: false, category: 'thong-tin-san-pham' },
-          { title: 'Thông tin về MerapLion', points: '2 điểm', icon: iconInfo, completed: false, category: 'thong-tin-ve-meraplion' },
           { title: 'Thông tin bệnh học', points: '1 điểm', icon: iconDna, completed: false, category: 'thong-tin-benh-hoc' },
           { title: 'Sổ tay người thầy thuốc', points: '1 điểm', icon: iconBook, completed: false, category: 'so-tay-nguoi-thay-thuoc' },
           { title: 'Tư vấn cùng chuyên gia', points: '1 điểm', icon: iconBrain, completed: false, category: 'tu-van-cung-chuyen-gia' }
@@ -583,6 +649,245 @@ const DashboardPage = () => {
               )}
             </div>
 
+            {/* 4 Point Stats Blocks */}
+            <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
+              <Col xs={12} sm={12} md={6}>
+                <Card style={{ textAlign: 'center', height: '100%' }}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <PlayCircleOutlined style={{ fontSize: 28, color: '#1890ff' }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>Điểm xem video & tài liệu</Text>
+                    <Statistic 
+                      value={videoPoints} 
+                      valueStyle={{ color: '#1890ff', fontSize: 24, fontWeight: 'bold' }}
+                      suffix="đ"
+                    />
+                  </Space>
+                </Card>
+              </Col>
+              <Col xs={12} sm={12} md={6}>
+                <Card style={{ textAlign: 'center', height: '100%' }}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <FireOutlined style={{ fontSize: 28, color: '#ff4d4f' }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>Điểm duy trì</Text>
+                    <Statistic 
+                      value={streakPoints} 
+                      valueStyle={{ color: '#ff4d4f', fontSize: 24, fontWeight: 'bold' }}
+                      suffix="đ"
+                    />
+                  </Space>
+                </Card>
+              </Col>
+              <Col xs={12} sm={12} md={6}>
+                <Card style={{ textAlign: 'center', height: '100%' }}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <GiftOutlined style={{ fontSize: 28, color: '#52c41a' }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>Điểm giới thiệu</Text>
+                    <Statistic 
+                      value={referralPoints} 
+                      valueStyle={{ color: '#52c41a', fontSize: 24, fontWeight: 'bold' }}
+                      suffix="đ"
+                    />
+                  </Space>
+                </Card>
+              </Col>
+              <Col xs={12} sm={12} md={6}>
+                <Card style={{ textAlign: 'center', height: '100%' }}>
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <RocketOutlined style={{ fontSize: 28, color: '#faad14' }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>Điểm mini game</Text>
+                    <Statistic 
+                      value={miniGamePoints} 
+                      valueStyle={{ color: '#faad14', fontSize: 24, fontWeight: 'bold' }}
+                      suffix="đ"
+                    />
+                  </Space>
+                </Card>
+              </Col>
+            </Row>
+
+            {/* Streak Timeline */}
+            {streakData.length > 0 && (
+              <Card 
+                title={
+                  <Space>
+                    <FireOutlined style={{ color: '#ff4d4f' }} />
+                    <span>CHUỖI DUY TRÌ 7 NGÀY GẦN ĐÂY</span>
+                  </Space>
+                }
+                style={{ marginBottom: 20 }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  {streakData.map((day, index) => {
+                    const date = new Date(day.date);
+                    const dayName = date.toLocaleDateString('vi-VN', { weekday: 'short' });
+                    const dayNum = date.getDate();
+                    const hasView = day.has_view;
+                    const streakLength = day.streak_length;
+                    const bonusPoint = day.bonus_point || 0;
+                    
+                    return (
+                      <div 
+                        key={index} 
+                        style={{ 
+                          flex: 1, 
+                          textAlign: 'center',
+                          position: 'relative'
+                        }}
+                      >
+                        {/* Day label */}
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+                          {dayName}
+                        </Text>
+                        
+                        {/* Circle indicator */}
+                        <div style={{ 
+                          width: 38, 
+                          height: 38, 
+                          borderRadius: '50%',
+                          backgroundColor: hasView ? '#52c41a' : '#d9d9d9',
+                          margin: '0 auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: bonusPoint > 0 ? '3px solid #ff4d4f' : 'none',
+                          position: 'relative'
+                        }}>
+                          {hasView ? (
+                            <span style={{ fontSize: 16, color: 'white' }}>✓</span>
+                          ) : (
+                            <span style={{ fontSize: 14, color: '#999' }}>•</span>
+                          )}
+                          
+                          {/* Bonus badge */}
+                          {bonusPoint > 0 && (
+                            <div style={{
+                              position: 'absolute',
+                              top: -12,
+                              right: -12,
+                              backgroundColor: '#ff4d4f',
+                              borderRadius: '8px',
+                              padding: '1px 5px',
+                              fontSize: 10,
+                              color: 'white',
+                              fontWeight: 'bold',
+                              border: '2px solid #fff',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}>
+                              +{bonusPoint}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Date number */}
+                        <Text style={{ fontSize: 12, display: 'block', marginTop: 4, fontWeight: hasView ? 'bold' : 'normal' }}>
+                          {dayNum}
+                        </Text>
+                        
+                        {/* Connecting line to next day */}
+                        {index < streakData.length - 1 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 35,
+                            left: '50%',
+                            width: '100%',
+                            height: 2,
+                            backgroundColor: hasView && streakData[index + 1].has_view ? '#52c41a' : '#d9d9d9',
+                            zIndex: -1
+                          }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Streak summary */}
+                {(() => {
+                  // Calculate current streak (consecutive days with has_view = true)
+                  // If today (last day) has no view, use the streak_length from the last day that had a view
+                  let currentStreak = 0;
+                  
+                  // Check if the most recent day has a view
+                  const lastDay = streakData[streakData.length - 1];
+                  if (lastDay && lastDay.has_view) {
+                    // If today has view, count from the end
+                    for (let i = streakData.length - 1; i >= 0; i--) {
+                      if (streakData[i].has_view) {
+                        currentStreak++;
+                      } else {
+                        break;
+                      }
+                    }
+                  } else {
+                    // If today has no view, find the last day with view and use its streak_length
+                    for (let i = streakData.length - 2; i >= 0; i--) {
+                      if (streakData[i].has_view) {
+                        currentStreak = streakData[i].streak_length;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // Calculate next milestone suggestion
+                  let suggestion = '';
+                  if (currentStreak === 2) {
+                    suggestion = '💪 Còn 1 ngày nữa → +30đ!';
+                  } else if (currentStreak === 5) {
+                    suggestion = '💪 Còn 2 ngày nữa → +30đ!';
+                  } else if (currentStreak === 6) {
+                    suggestion = '💪 Còn 1 ngày nữa → +40đ (tổng 100đ)!';
+                  }
+                  
+                  return (
+                    <>
+                      <div style={{ 
+                        marginTop: 20, 
+                        padding: '12px 16px', 
+                        backgroundColor: '#e6f7f5', 
+                        borderRadius: 8,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <Space>
+                          <FireOutlined style={{ color: '#ff4d4f', fontSize: 15 }} />
+                          <Text strong style={{ fontSize: 13 }}>Chuỗi hiện tại: {currentStreak} ngày</Text>
+                        </Space>
+                        <Tag color="gold" style={{ margin: 0, fontSize: 11 }}>
+                          Tổng thưởng đã nhận: +{streakPoints} điểm
+                        </Tag>
+                      </div>
+                      
+                      {/* Suggestion */}
+                      {suggestion && (
+                        <div 
+                          className="streak-suggestion-blink"
+                          style={{ 
+                            marginTop: 12, 
+                            padding: '8px 12px', 
+                            backgroundColor: '#fff7e6',
+                            border: '1px solid #ffd591',
+                            borderRadius: 8,
+                            textAlign: 'center'
+                          }}
+                        >
+                          <Text strong style={{ fontSize: 12, color: '#d48806', lineHeight: '1.4' }}>
+                            {suggestion}
+                          </Text>
+                        </div>
+                      )}
+                      
+                      {/* Milestone info */}
+                      <div style={{ marginTop: 12, textAlign: 'center' }}>
+                        <Text style={{ fontSize: 11, color: '#262626' }}>
+                          💡 Mốc thưởng: 3 ngày liên tiếp (tổng +30đ), 7 ngày liên tiếp (tổng +100đ)
+                        </Text>
+                      </div>
+                    </>
+                  );
+                })()}
+              </Card>
+            )}
+
             <Card title={
               <Space>
                 <span>MẸO TĂNG ĐIỂM</span>
@@ -621,7 +926,16 @@ const DashboardPage = () => {
                       avatar={
                         <img src={task.icon} alt={task.title} style={{ width: '32px', height: '32px', objectFit: 'contain', opacity: task.isComingSoon ? 0.5 : 1 }} />
                       }
-                      title={<Text strong style={{ color: task.isComingSoon ? '#999' : 'inherit' }}>{task.title}</Text>}
+                      title={
+                        <Space size={8}>
+                          <Text strong style={{ color: task.isComingSoon ? '#999' : 'inherit' }}>{task.title}</Text>
+                          {task.isNew && (
+                            <Tag className="new-label-blink">
+                              NEW
+                            </Tag>
+                          )}
+                        </Space>
+                      }
                       description={
                         <Badge 
                           count={task.points} 

@@ -73,6 +73,7 @@ const DocumentListPage = () => {
   const hasShown50ModalRef = React.useRef(false); // Track if 50% modal shown
   const hasShown100ModalRef = React.useRef(false); // Track if 100% modal shown
   const currentDocumentRef = React.useRef(null); // Track current document (avoid stale closure)
+  const viewerOpenRef = React.useRef(false); // Track viewer open state (avoid stale closure)
   const [likeCount, setLikeCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [minViewingTime50, setMinViewingTime50] = useState(60); // Default 60s for 50%
@@ -156,12 +157,11 @@ const DocumentListPage = () => {
           return;
         }
 
-        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/nvbc_get_point/?phone=${phoneNumber}`;
+        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           }
         });
 
@@ -191,7 +191,8 @@ const DocumentListPage = () => {
                 type: doc.type, // 'pdf' or 'video'
                 points: `${doc.point} điểm`,
                 url: doc.url,
-                sub_category: doc.sub_category || ''
+                sub_category: doc.sub_category || '',
+                condition: doc.condition // Add condition field for "new" label
               }));
               
               setDocuments(transformedDocs);
@@ -238,6 +239,7 @@ const DocumentListPage = () => {
     setCurrentDocument(document);
     currentDocumentRef.current = document; // ✅ Store in ref for timer callbacks
     setViewerOpen(true);
+    viewerOpenRef.current = true; // ✅ Store in ref for timer callbacks
     setViewingTime(0);
     setEarnedPoints(0);
     setHasReached50Percent(false); // Reset 50% milestone
@@ -284,31 +286,35 @@ const DocumentListPage = () => {
       setViewingTime(prevTime => {
         const newTime = prevTime + 1;
         
-        // Calculate points based on 2-tier system:
-        // - 0 to 50% time: 0% to 50% points (linear)
-        // - 50% to 100% time: 50% to 100% points (linear)
+        // Debug log every 10 seconds
+        if (newTime % 10 === 0) {
+          console.log('[TIMER] Time:', newTime, 's | 50%:', minViewingTime50, 's | 100%:', minViewingTime100, 's | viewerOpen:', viewerOpenRef.current);
+        }
+        
+        // ✅ Calculate points based on 2-tier system (SIMPLE):
+        // - < 60s (50%): 0 points
+        // - >= 60s (50%): 50% points (time_rate = 0.5)
+        // - >= 120s (100%): 100% points (time_rate = 1.0)
         const basePoints = parseInt(document.points.replace(/[^\d]/g, '')) || 0;
         let earnedPoints = 0;
         
-        if (newTime <= minViewingTime50) {
-          // 0 to 50% range
-          earnedPoints = Math.floor((newTime / minViewingTime50) * (basePoints / 2));
-        } else if (newTime <= minViewingTime100) {
-          // 50% to 100% range
-          const progressBeyond50 = newTime - minViewingTime50;
-          const rangeBeyond50 = minViewingTime100 - minViewingTime50;
-          const pointsFor50To100 = (progressBeyond50 / rangeBeyond50) * (basePoints / 2);
-          earnedPoints = Math.floor((basePoints / 2) + pointsFor50To100);
-        } else {
-          // Already at 100%
+        if (newTime >= minViewingTime100) {
+          // >= 100% → full points
           earnedPoints = basePoints;
+        } else if (newTime >= minViewingTime50) {
+          // >= 50% → half points
+          earnedPoints = Math.floor(basePoints * 0.5);
+        } else {
+          // < 50% → no points yet
+          earnedPoints = 0;
         }
         
         setEarnedPoints(earnedPoints);
         
         // 🎉 Track 50% milestone - Show modal popup ONCE
         // ✅ Safety check: Only show modal if viewer is still open
-        if (!hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpen) {
+        if (!hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpenRef.current) {
+          console.log('[50% MILESTONE] ✅ TRIGGERED! newTime:', newTime, 'hasReached50:', hasReached50Percent, 'hasShown50Modal:', hasShown50ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
           setHasReached50Percent(true);
           hasShown50ModalRef.current = true; // Mark as shown
           triggerCelebration(50); // Show 50% modal
@@ -316,8 +322,8 @@ const DocumentListPage = () => {
         
         // 🎊 Track 100% milestone - Auto POST API immediately
         // ✅ Safety check: Only trigger if viewer is still open
-        if (!hasReached100Percent && newTime >= minViewingTime100 && !hasShown100ModalRef.current && viewerOpen) {
-          console.log('[100% CHECK] newTime:', newTime, 'minViewingTime100:', minViewingTime100, 'condition:', newTime >= minViewingTime100);
+        if (!hasReached100Percent && newTime >= minViewingTime100 && !hasShown100ModalRef.current && viewerOpenRef.current) {
+          console.log('[100% MILESTONE] ✅ TRIGGERED! newTime:', newTime, 'hasReached100:', hasReached100Percent, 'hasShown100Modal:', hasShown100ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
           setHasReached100Percent(true);
           hasShown100ModalRef.current = true; // Mark as shown
           
@@ -453,22 +459,20 @@ const DocumentListPage = () => {
     console.log('[POST API] Using viewingTime:', currentViewingTime, '(actual:', actualViewingTime, 'state:', viewingTime, ')');
     console.log('[POST API] Document:', docToPost.id, docToPost.name);
     
-    // Calculate time_rate: 60s = 0.5, 120s = 1.0
+    // ✅ Calculate time_rate: ONLY 2 tiers (0.5 or 1.0)
+    // - >= 120s (100%) → time_rate = 1.0
+    // - >= 60s (50%) → time_rate = 0.5
+    // - < 60s → time_rate = 0 (no points)
     let timeRate = 0;
     if (currentViewingTime >= minViewingTime100) {
-      // >= 120s = 1.0 (100%)
-      timeRate = 1.0;
+      timeRate = 1.0;  // 100%
     } else if (currentViewingTime >= minViewingTime50) {
-      // 60s-120s: linear from 0.5 to 1.0
-      const progress = (currentViewingTime - minViewingTime50) / (minViewingTime100 - minViewingTime50);
-      timeRate = 0.5 + (progress * 0.5);
-    } else if (currentViewingTime > 0) {
-      // 0s-60s: linear from 0 to 0.5
-      timeRate = (currentViewingTime / minViewingTime50) * 0.5;
+      timeRate = 0.5;  // 50%
+    } else {
+      timeRate = 0;    // Not enough time
     }
     
-    // Round to 2 decimal places
-    timeRate = Math.round(timeRate * 100) / 100;
+    console.log('[POST API] time_rate:', timeRate, '(viewingTime:', currentViewingTime, 's)');
     
     // Parse base points from document
     let basePoints = 4; // default
@@ -479,7 +483,6 @@ const DocumentListPage = () => {
         basePoints = docToPost.points;
       }
     }
-    
     console.log('[POST API] Data:', {
       currentViewingTime,
       viewingTimeState: viewingTime,
@@ -596,6 +599,7 @@ const DocumentListPage = () => {
     // No need to save to localStorage anymore
 
     setViewerOpen(false);
+    viewerOpenRef.current = false; // ✅ Clear ref
     setCurrentDocument(null);
     currentDocumentRef.current = null; // ✅ Clear ref
     setViewingTime(0);
@@ -793,18 +797,25 @@ const DocumentListPage = () => {
   };
 
   const triggerCelebration = (milestone = 50) => {
-    // Parse points - could be "4 điểm" or 4
+    // ✅ Use ref to avoid stale closure
+    const docToShow = currentDocumentRef.current || currentDocument;
+    
+    // Parse points - could be "10 điểm" or 10
     let basePoints = 4; // default
-    if (currentDocument?.points) {
-      if (typeof currentDocument.points === 'string') {
-        basePoints = parseInt(currentDocument.points) || 4;
+    if (docToShow?.points) {
+      if (typeof docToShow.points === 'string') {
+        basePoints = parseInt(docToShow.points) || 4;
       } else {
-        basePoints = currentDocument.points;
+        basePoints = docToShow.points;
       }
     }
     
-    const points50 = Math.floor(basePoints / 2);
-    const points100 = basePoints;
+    console.log('[CELEBRATION] Document:', docToShow?.name, 'Base points:', basePoints);
+    
+    const points50 = Math.floor(basePoints * 0.5);  // 50% points
+    const points100 = basePoints;                   // 100% points
+    
+    console.log('[CELEBRATION] 50% points:', points50, '100% points:', points100);
     
     // Show 50% milestone modal
     Modal.success({
@@ -925,7 +936,14 @@ const DocumentListPage = () => {
                     }
                     title={
                       <Space direction="vertical" size={4}>
-                        <Text strong>{document.name}</Text>
+                        <Space size={8} align="center">
+                          <Text strong>{document.name}</Text>
+                          {document.condition === 'new' && (
+                            <Tag className="new-label-blink">
+                              NEW
+                            </Tag>
+                          )}
+                        </Space>
                         <Space size={4}>
                           <Tag color={document.type === 'video' ? 'blue' : 'orange'}>
                             {document.type === 'video' ? 'VIDEO' : 'PDF'}

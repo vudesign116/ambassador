@@ -33,6 +33,7 @@ import AdminLayout from './layouts/AdminLayout';
 
 // Error Boundary
 import ErrorBoundary from './components/ErrorBoundary';
+import APIErrorBoundary from './components/APIErrorBoundary';
 
 // Protected Route
 import ProtectedRoute from './components/ProtectedRoute';
@@ -46,6 +47,9 @@ import './App.css';
 
 // Import Google Sheets service for page view tracking
 import { googleSheetsService } from './services/googleSheetsService';
+
+// Import API Monitor for automatic error detection
+import apiMonitor from './services/apiMonitor';
 
 // 🔇 Disable all console logs for clean UI
 if (false) { // Set to false to enable console for debugging - ENABLED FOR API DEBUG
@@ -149,17 +153,18 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router 
-        future={{ 
-          v7_startTransition: true,
-          v7_relativeSplatPath: true 
-        }}
-      >
-        <div className="App">
-          {/* 🆕 Scroll to top on route change (iPhone fix) */}
-          <ScrollToTop />
-          {/* 🆕 Global Page View Tracker */}
-          <PageViewTracker />
+      <APIErrorBoundary>
+        <Router 
+          future={{ 
+            v7_startTransition: true,
+            v7_relativeSplatPath: true 
+          }}
+        >
+          <div className="App">
+            {/* 🆕 Scroll to top on route change (iPhone fix) */}
+            <ScrollToTop />
+            {/* 🆕 Global Page View Tracker */}
+            <PageViewTracker />
           
           <Routes>
             {/* User Routes */}
@@ -230,8 +235,9 @@ function App() {
             {/* 404 - Must be last */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        </div>
-      </Router>
+          </div>
+        </Router>
+      </APIErrorBoundary>
     </ErrorBoundary>
   );
 }

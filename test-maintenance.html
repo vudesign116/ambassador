@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Maintenance Mode</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .section h2 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .section p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 5px;
+      min-width: 200px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .danger {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    }
+
+    .success {
+      background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+    }
+
+    .warning {
+      background: linear-gradient(135deg, #ffa94d 0%, #fd7e14 100%);
+    }
+
+    .code {
+      background: #2d3748;
+      color: #68d391;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 15px 0;
+      line-height: 1.6;
+    }
+
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-weight: 600;
+    }
+
+    .status.active {
+      background: #fff3bf;
+      color: #997404;
+      border: 2px solid #ffd43b;
+    }
+
+    .status.inactive {
+      background: #d3f9d8;
+      color: #2b8a3e;
+      border: 2px solid #69db7c;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛠️ Test Maintenance Mode</h1>
+    <p class="subtitle">Công cụ test hệ thống bảo trì tự động</p>
+
+    <div class="section">
+      <h2>📊 Trạng Thái Hiện Tại</h2>
+      <div id="status" class="status inactive">
+        ✅ Hệ thống hoạt động bình thường
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🧪 Test 1: Trigger Maintenance Thủ Công</h2>
+      <p>Kích hoạt maintenance mode ngay lập tức bằng CustomEvent</p>
+      <div class="buttons">
+        <button onclick="triggerMaintenance()">🚨 Trigger Maintenance</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🔥 Test 2: Gây Lỗi API (3 lần)</h2>
+      <p>Gọi API endpoint không tồn tại 3 lần để trigger tự động</p>
+      <div class="buttons">
+        <button class="danger" onclick="causeAPIErrors()">💥 Gây Lỗi API</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>💾 Test 3: Set LocalStorage</h2>
+      <p>Set maintenance mode trực tiếp vào localStorage</p>
+      <div class="buttons">
+        <button class="warning" onclick="setLocalStorageMaintenance()">📝 Set LocalStorage</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🔄 Reset & Clear</h2>
+      <p>Xóa maintenance mode và reset hệ thống</p>
+      <div class="buttons">
+        <button class="success" onclick="clearMaintenance()">✨ Clear Maintenance</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📖 Console Code</h2>
+      <p>Copy code này vào console của ứng dụng React:</p>
+      <div class="code">
+// Trigger maintenance mode<br>
+const event = new CustomEvent('maintenanceMode', {<br>
+&nbsp;&nbsp;detail: { error: { message: 'Test', status: 500 } }<br>
+});<br>
+window.dispatchEvent(event);<br>
+<br>
+// Clear maintenance mode<br>
+localStorage.removeItem('maintenanceMode');<br>
+localStorage.removeItem('maintenanceError');<br>
+window.location.reload();
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Cập nhật status
+    function updateStatus() {
+      const status = document.getElementById('status');
+      const isMaintenanceMode = localStorage.getItem('maintenanceMode') === 'true';
+      
+      if (isMaintenanceMode) {
+        status.className = 'status active';
+        status.innerHTML = '🚨 Maintenance Mode ACTIVE';
+      } else {
+        status.className = 'status inactive';
+        status.innerHTML = '✅ Hệ thống hoạt động bình thường';
+      }
+    }
+
+    // Test 1: Trigger thủ công
+    function triggerMaintenance() {
+      const event = new CustomEvent('maintenanceMode', {
+        detail: { 
+          error: {
+            message: 'Test maintenance mode - Triggered manually',
+            status: 500,
+            timestamp: new Date().toISOString()
+          }
+        }
+      });
+      
+      window.dispatchEvent(event);
+      
+      // Set localStorage backup
+      localStorage.setItem('maintenanceMode', 'true');
+      localStorage.setItem('maintenanceError', JSON.stringify({
+        message: 'Test maintenance mode - Triggered manually',
+        status: 500,
+        timestamp: new Date().toISOString()
+      }));
+      
+      alert('✅ Maintenance mode triggered!\nReload trang React để thấy kết quả.');
+      updateStatus();
+    }
+
+    // Test 2: Gây lỗi API
+    async function causeAPIErrors() {
+      console.log('🔥 Bắt đầu gây lỗi API...');
+      
+      const fakeEndpoint = 'https://this-does-not-exist-12345.com/api/test';
+      
+      for (let i = 1; i <= 3; i++) {
+        try {
+          await fetch(fakeEndpoint);
+        } catch (error) {
+          console.error(`❌ Lỗi ${i}/3:`, error.message);
+        }
+        
+        // Delay nhỏ giữa các requests
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      alert('✅ Đã gây 3 lỗi API!\nKiểm tra console và reload trang React.');
+      updateStatus();
+    }
+
+    // Test 3: Set localStorage
+    function setLocalStorageMaintenance() {
+      localStorage.setItem('maintenanceMode', 'true');
+      localStorage.setItem('maintenanceError', JSON.stringify({
+        message: 'Server đang bảo trì - Được set từ localStorage',
+        status: 503,
+        timestamp: new Date().toISOString()
+      }));
+      
+      alert('✅ Đã set localStorage!\nReload trang React để thấy maintenance page.');
+      updateStatus();
+    }
+
+    // Clear maintenance
+    function clearMaintenance() {
+      localStorage.removeItem('maintenanceMode');
+      localStorage.removeItem('maintenanceError');
+      
+      alert('✅ Đã clear maintenance mode!\nReload trang để về trạng thái bình thường.');
+      updateStatus();
+    }
+
+    // Update status on load
+    updateStatus();
+    
+    // Auto update every 2 seconds
+    setInterval(updateStatus, 2000);
+  </script>
+</body>
+</html>

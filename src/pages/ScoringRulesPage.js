@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Space, Divider } from 'antd';
-import { RightOutlined, TrophyOutlined } from '@ant-design/icons';
+import { Card, Button, Typography, Space, Divider, Spin } from 'antd';
+import { RightOutlined, TrophyOutlined, LoadingOutlined } from '@ant-design/icons';
 import banner from '../images/scoring-banner.jpg';
 import { googleSheetsService } from '../services/googleSheetsService';
 
@@ -11,10 +11,12 @@ const ScoringRulesPage = () => {
   const navigate = useNavigate();
   const [bannerImage, setBannerImage] = useState(banner);
   const [rulesContent, setRulesContent] = useState('');
+  const [loading, setLoading] = useState(true);
 
   // Load configuration from admin (ALWAYS load from Google Sheets)
   useEffect(() => {
     const loadConfig = async () => {
+      setLoading(true); // Start loading
       try {
         // CRITICAL FIX: Always fetch from Google Sheets FIRST
         console.log('🔄 Loading scoring rules from Google Sheets...');
@@ -51,6 +53,8 @@ const ScoringRulesPage = () => {
           setRulesContent(config.rulesContent || '');
           console.log('📦 Loaded from localStorage (error fallback)');
         }
+      } finally {
+        setLoading(false); // Stop loading
       }
     };
     
@@ -59,12 +63,32 @@ const ScoringRulesPage = () => {
 
   return (
     <div className="full-height scoring-page-bg" style={{ paddingBottom: '80px' }}>
-      <div className="scoring-banner">
-        <img src={bannerImage} alt="Scoring Rules Banner" className="banner-image" />
-      </div>
+      {loading ? (
+        // Loading state
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <Spin 
+            indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
+            size="large"
+          />
+          <Text style={{ fontSize: '16px', color: '#666' }}>
+            Đang tải quy tắc tính điểm...
+          </Text>
+        </div>
+      ) : (
+        <>
+          <div className="scoring-banner">
+            <img src={bannerImage} alt="Scoring Rules Banner" className="banner-image" />
+          </div>
 
-      <div className="container">
-        <Card title={<Space><TrophyOutlined /> Công thức tính điểm</Space>}>
+          <div className="container">
+            <Card title={<Space><TrophyOutlined /> Công thức tính điểm</Space>}>
           {/* Debug: Log current state */}
           {console.log('🖼️ Rendering ScoringRulesPage:', {
             bannerImage: bannerImage?.substring(0, 50),
@@ -157,6 +181,8 @@ const ScoringRulesPage = () => {
         <span style={{ flex: 1, textAlign: 'center' }}>BẮT ĐẦU</span>
         <RightOutlined style={{ position: 'absolute', right: 16 }} />
       </Button>
+      </>
+      )}
     </div>
   );
 };
