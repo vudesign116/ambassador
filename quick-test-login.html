@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Quick Test Login Flow</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .result {
+      background: white;
+      padding: 20px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border-left: 4px solid #667eea;
+    }
+    button {
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    .success { border-left-color: #52c41a; }
+    .error { border-left-color: #ff4d4f; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Quick Test Login Flow - 0344406126</h1>
+  <button onclick="testLoginFlow()">▶️ Test Login Flow</button>
+  <div id="output"></div>
+
+  <script>
+    const API_BASE = 'https://bi.meraplion.com/local';
+    const PHONE = '0344406126';
+    
+    async function testLoginFlow() {
+      const output = document.getElementById('output');
+      output.innerHTML = '<div class="result">⏳ Testing...</div>';
+      
+      try {
+        // STEP 1: Login API
+        console.log('📞 Calling login API...');
+        const loginRes = await fetch(`${API_BASE}/get_data/get_nvbc_login/?test=1&phone=${PHONE}`);
+        const loginData = await loginRes.json();
+        
+        console.log('✅ Login Response:', loginData);
+        
+        // STEP 2: Reward API
+        console.log('🎁 Calling reward API...');
+        const rewardRes = await fetch(`${API_BASE}/nvbc_get_point/?phone=${PHONE}`);
+        const rewardData = await rewardRes.json();
+        
+        console.log('✅ Reward Response:', rewardData);
+        
+        // Merge logic
+        const isValidInvitee = loginData.is_valid_invitee !== undefined 
+          ? loginData.is_valid_invitee 
+          : (rewardData.is_valid_invitee || false);
+        
+        const point = rewardData.point || 0;
+        const shouldShowPopup = isValidInvitee === true && point === 0;
+        
+        // Display result
+        let html = `
+          <div class="result success">
+            <h3>✅ API Responses:</h3>
+            
+            <h4>📞 Login API Response:</h4>
+            <pre>${JSON.stringify(loginData, null, 2)}</pre>
+            
+            <h4>🎁 Reward API Response:</h4>
+            <pre>${JSON.stringify(rewardData, null, 2)}</pre>
+          </div>
+          
+          <div class="result">
+            <h3>🔍 Logic Check:</h3>
+            <p><strong>is_valid_invitee (from login):</strong> ${loginData.is_valid_invitee}</p>
+            <p><strong>is_valid_invitee (from reward):</strong> ${rewardData.is_valid_invitee}</p>
+            <p><strong>is_valid_invitee (merged):</strong> ${isValidInvitee}</p>
+            <p><strong>point:</strong> ${point}</p>
+          </div>
+          
+          <div class="result ${shouldShowPopup ? 'success' : 'error'}">
+            <h2>${shouldShowPopup ? '✅ HIỆN POPUP' : '❌ KHÔNG HIỆN POPUP'}</h2>
+            <p><strong>Condition:</strong> is_valid_invitee === true && point === 0</p>
+            <p><strong>Result:</strong> ${isValidInvitee} === true && ${point} === 0 = ${shouldShowPopup}</p>
+          </div>
+        `;
+        
+        output.innerHTML = html;
+        
+      } catch (error) {
+        output.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
+        console.error('Error:', error);
+      }
+    }
+    
+    // Auto run
+    window.addEventListener('load', () => {
+      console.log('🚀 Ready to test. Click button or call testLoginFlow()');
+    });
+  </script>
+</body>
+</html>

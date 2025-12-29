@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Login API - Ambassador App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      max-width: 1000px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    button.secondary {
+      background: #52c41a;
+    }
+    .result {
+      margin-top: 30px;
+      padding: 20px;
+      border-radius: 8px;
+      background: #f5f5f5;
+      border-left: 4px solid #667eea;
+    }
+    .result.success {
+      background: #f6ffed;
+      border-left-color: #52c41a;
+    }
+    .result.error {
+      background: #fff2f0;
+      border-left-color: #ff4d4f;
+    }
+    .result.warning {
+      background: #fffbe6;
+      border-left-color: #faad14;
+    }
+    pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .info-box {
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .info-box h3 {
+      margin-top: 0;
+      color: #1890ff;
+    }
+    .highlight {
+      background: #fff3cd;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      color: #856404;
+    }
+    .key-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .key-card {
+      background: white;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    .key-card.highlight-true {
+      border-color: #52c41a;
+      background: #f6ffed;
+    }
+    .key-card.highlight-false {
+      border-color: #ff4d4f;
+      background: #fff2f0;
+    }
+    .key-card h4 {
+      margin: 0 0 10px 0;
+      color: #333;
+      font-size: 14px;
+    }
+    .key-card .value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .key-card .value.true {
+      color: #52c41a;
+    }
+    .key-card .value.false {
+      color: #ff4d4f;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Test Login API</h1>
+    <p class="subtitle">Kiểm tra API login và xem response có key `is_valid_invitee`</p>
+
+    <div class="info-box">
+      <h3>📋 Mục đích:</h3>
+      <p>Test logic mới: Hiện popup người giới thiệu khi:</p>
+      <ul>
+        <li><span class="highlight">is_valid_invitee = true</span></li>
+        <li>AND <span class="highlight">point = 0</span></li>
+      </ul>
+      <p><strong>Nếu is_valid_invitee = false → Bỏ qua popup</strong></p>
+    </div>
+
+    <div class="form-group">
+      <label>📞 Số điện thoại:</label>
+      <input type="text" id="phoneInput" value="0344406126" placeholder="0123456789">
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <button onclick="testLogin()">✅ Test Login API</button>
+      <button class="secondary" onclick="testRewardAPI()">🎁 Test Reward API</button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const API_BASE_URL = 'https://bi.meraplion.com/local';
+    const API_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzY3MzA3MTk5LCJpYXQiOjE3MzU3NzExOTksImp0aSI6IjhlNmQwZDQ1ZTlhOTQwMzdhZjY5ZWZhMWE2MzI4MWJiIiwidXNlcl9pZCI6MX0.X0U7g8z-hIquhEqJt2IprDOhf8K-_Kcp5TmS6ghdHnI';
+
+    async function testLogin() {
+      const phone = document.getElementById('phoneInput').value.trim();
+
+      if (!phone) {
+        showResult('❌ Please enter phone number', 'error');
+        return;
+      }
+
+      showResult('⏳ Calling Login API...', 'info');
+
+      try {
+        console.log('📞 Calling /nvbc_login/ with phone:', phone);
+
+        const response = await fetch(`${API_BASE_URL}/nvbc_login/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_TOKEN}`
+          },
+          body: JSON.stringify({ phone: phone })
+        });
+
+        console.log('📡 Response status:', response.status);
+
+        const data = await response.json();
+        console.log('📦 Response data:', data);
+
+        if (!response.ok) {
+          showResult(
+            `❌ API Error (${response.status})\n\n${JSON.stringify(data, null, 2)}`,
+            'error'
+          );
+          return;
+        }
+
+        // Parse key fields
+        const keyFields = {
+          phone: data.phone || 'N/A',
+          ma_kh_dms: data.ma_kh_dms || 'N/A',
+          name: data.name || 'N/A',
+          point: data.point !== undefined ? data.point : 'N/A',
+          is_valid_invitee: data.is_valid_invitee !== undefined ? data.is_valid_invitee : 'N/A',
+          insert_referral: data.insert_referral !== undefined ? data.insert_referral : 'N/A'
+        };
+
+        // Check logic
+        const shouldShowPopup = data.is_valid_invitee === true && data.point === 0;
+
+        let resultHTML = `
+          <h3 style="margin-top: 0; color: #52c41a;">✅ Login API Success!</h3>
+          
+          <div class="key-info">
+            <div class="key-card">
+              <h4>📞 Phone</h4>
+              <div class="value">${keyFields.phone}</div>
+            </div>
+            
+            <div class="key-card">
+              <h4>👤 Name</h4>
+              <div class="value">${keyFields.name}</div>
+            </div>
+            
+            <div class="key-card">
+              <h4>🏷️ Ma KH DMS</h4>
+              <div class="value">${keyFields.ma_kh_dms}</div>
+            </div>
+            
+            <div class="key-card ${keyFields.point === 0 ? 'highlight-true' : ''}">
+              <h4>⭐ Point</h4>
+              <div class="value ${keyFields.point === 0 ? 'true' : 'false'}">${keyFields.point}</div>
+            </div>
+            
+            <div class="key-card ${keyFields.is_valid_invitee === true ? 'highlight-true' : 'highlight-false'}">
+              <h4>🎯 is_valid_invitee</h4>
+              <div class="value ${keyFields.is_valid_invitee === true ? 'true' : 'false'}">
+                ${keyFields.is_valid_invitee !== 'N/A' ? keyFields.is_valid_invitee : 'N/A'}
+              </div>
+            </div>
+            
+            <div class="key-card">
+              <h4>📝 insert_referral</h4>
+              <div class="value">${keyFields.insert_referral !== 'N/A' ? keyFields.insert_referral : 'N/A'}</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px; padding: 15px; background: ${shouldShowPopup ? '#f6ffed' : '#fff2f0'}; border-radius: 6px; border: 2px solid ${shouldShowPopup ? '#52c41a' : '#ff4d4f'};">
+            <h4 style="margin: 0 0 10px 0;">🔍 Logic Check:</h4>
+            <p style="margin: 5px 0;">
+              <strong>is_valid_invitee:</strong> ${keyFields.is_valid_invitee} ${keyFields.is_valid_invitee === true ? '✅' : '❌'}
+            </p>
+            <p style="margin: 5px 0;">
+              <strong>point:</strong> ${keyFields.point} ${keyFields.point === 0 ? '✅' : '❌'}
+            </p>
+            <p style="margin: 15px 0 0 0; font-size: 18px; font-weight: 700; color: ${shouldShowPopup ? '#52c41a' : '#ff4d4f'};">
+              ${shouldShowPopup ? '✅ HIỆN POPUP người giới thiệu' : '❌ KHÔNG hiện popup'}
+            </p>
+          </div>
+
+          <h4 style="margin-top: 20px;">📦 Full Response:</h4>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+
+        showResult(resultHTML, 'success');
+
+      } catch (error) {
+        showResult(`❌ Network Error:\n\n${error.message}`, 'error');
+        console.error('Error:', error);
+      }
+    }
+
+    async function testRewardAPI() {
+      const phone = document.getElementById('phoneInput').value.trim();
+
+      if (!phone) {
+        showResult('❌ Please enter phone number', 'error');
+        return;
+      }
+
+      showResult('⏳ Calling Reward API...', 'info');
+
+      try {
+        console.log('📞 Calling /nvbc_get_point/ with phone:', phone);
+
+        const response = await fetch(`${API_BASE_URL}/nvbc_get_point/?phone=${phone}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_TOKEN}`
+          }
+        });
+
+        console.log('📡 Response status:', response.status);
+
+        const data = await response.json();
+        console.log('📦 Response data:', data);
+
+        if (!response.ok) {
+          showResult(
+            `❌ API Error (${response.status})\n\n${JSON.stringify(data, null, 2)}`,
+            'error'
+          );
+          return;
+        }
+
+        showResult(
+          `✅ Reward API Success!\n\n${JSON.stringify(data, null, 2)}`,
+          'success'
+        );
+
+      } catch (error) {
+        showResult(`❌ Network Error:\n\n${error.message}`, 'error');
+        console.error('Error:', error);
+      }
+    }
+
+    function showResult(message, type = 'info') {
+      const resultDiv = document.getElementById('result');
+      resultDiv.className = `result ${type}`;
+      
+      if (message.includes('<')) {
+        resultDiv.innerHTML = message;
+      } else {
+        resultDiv.innerHTML = `<pre>${message}</pre>`;
+      }
+    }
+
+    // Auto test on load
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Test tool loaded. Click "Test Login API" to start.');
+    });
+  </script>
+</body>
+</html>

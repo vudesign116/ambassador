@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Space, Image, Divider } from 'antd';
-import { RightOutlined, GiftOutlined } from '@ant-design/icons';
+import { Card, Button, Typography, Space, Image, Divider, Spin } from 'antd';
+import { RightOutlined, GiftOutlined, LoadingOutlined } from '@ant-design/icons';
 import ambassadorLogo from '../images/MAmbassador-logo.png';
+import rewardApiService from '../services/rewardApiService';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -11,49 +12,160 @@ const IntroductionPage = () => {
   const userName = localStorage.getItem('userName') || 'Quý Dược sĩ';
   const [logo, setLogo] = useState(ambassadorLogo);
   const [introText, setIntroText] = useState('');
-  const [rewardLevels, setRewardLevels] = useState([
-    {
-      title: 'Học Gia Trẻ',
-      stars: '⭐⭐',
-      threshold: '3.000 điểm/quý',
-      gift: 'Máy sấy tóc Philips HP8108 1000W',
-      color: '#FFD700',
-    },
-    {
-      title: 'Chuyên Gia',
-      stars: '⭐⭐⭐',
-      threshold: '5.000 điểm/quý',
-      gift: 'Quạt cầm tay tốc độ cao Shimono SM-HF18(W)',
-      color: '#FF6B9D',
-    },
-  ]);
+  const [rewardLevels, setRewardLevels] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Load configuration from admin
+  // Load configuration from admin + filter by API
   useEffect(() => {
-    const adminConfig = localStorage.getItem('admin_introduction_config');
-    if (adminConfig) {
-      const config = JSON.parse(adminConfig);
-      if (config.logo) setLogo(config.logo);
-      if (config.introText) setIntroText(config.introText);
-      if (config.awards && config.awards.length > 0) {
-        // Convert admin awards format to component format
-        const formattedAwards = config.awards.map(award => ({
-          title: award.title,
-          description: award.description,
-          gifts: award.gifts || []
-        }));
-        setRewardLevels(formattedAwards);
+    const loadData = async () => {
+      setLoading(true);
+      
+      try {
+        // Get API data for gift filtering
+        const phoneNumber = localStorage.getItem('phoneNumber');
+        let apiData = null;
+        
+        if (phoneNumber) {
+          try {
+            apiData = await rewardApiService.getRewardStatus(phoneNumber);
+            console.log('🎁 [IntroductionPage] API Data:', apiData);
+          } catch (err) {
+            console.warn('⚠️ [IntroductionPage] Failed to load API data:', err);
+          }
+        }
+
+        // Load admin config
+        const adminConfig = localStorage.getItem('admin_introduction_config');
+        if (adminConfig) {
+          const config = JSON.parse(adminConfig);
+          if (config.logo) setLogo(config.logo);
+          if (config.introText) setIntroText(config.introText);
+          
+          if (config.awards && config.awards.length > 0) {
+            // Get API gift lists
+            const apiGiftLists = {
+              th_monthly_reward: apiData?.list_chon_monthly || [],
+              product_expert_reward: apiData?.list_chon_dgcc || [],
+              avid_reader_reward: apiData?.list_chon_cgsp || [],
+              // Also map by API field names directly
+              list_chon_monthly: apiData?.list_chon_monthly || [],
+              list_chon_dgcc: apiData?.list_chon_dgcc || [],
+              list_chon_cgsp: apiData?.list_chon_cgsp || []
+            };
+
+            const validRewardKeys = [
+              'th_monthly_reward', 
+              'product_expert_reward', 
+              'avid_reader_reward',
+              'list_chon_monthly',
+              'list_chon_dgcc',
+              'list_chon_cgsp'
+            ];
+
+            // Filter gifts by API lists
+            const formattedAwards = config.awards.map(award => {
+              let rewardKey = award.reward_key;
+              let shouldFallback = false; // Flag to control fallback
+              
+              // Check if reward_key exists
+              if (rewardKey) {
+                // Validate reward_key
+                if (!validRewardKeys.includes(rewardKey)) {
+                  console.error(`❌ [IntroductionPage] Invalid reward_key: "${rewardKey}" in "${award.title}"`);
+                  console.error(`  → Expected one of:`, validRewardKeys);
+                  console.error(`  → Skipping this award (no gifts will be shown)`);
+                  
+                  // Don't fallback - return empty award
+                  return {
+                    title: award.title,
+                    description: award.description,
+                    gifts: [] // No gifts for invalid key
+                  };
+                }
+              } else {
+                // No reward_key provided - allow fallback
+                shouldFallback = true;
+              }
+              
+              // Fallback mapping ONLY if no reward_key was provided at all
+              if (shouldFallback) {
+                const title = award.title.toLowerCase();
+                console.warn(`⚠️ [IntroductionPage] No reward_key for "${award.title}", using fallback mapping`);
+                
+                if (title.includes('tích cực') || title.includes('tháng')) {
+                  rewardKey = 'th_monthly_reward';
+                } else if (title.includes('chuyên gia')) {
+                  rewardKey = 'product_expert_reward';
+                } else if (title.includes('đọc giả') || title.includes('chăm chỉ')) {
+                  rewardKey = 'avid_reader_reward';
+                }
+                
+                if (rewardKey) {
+                  console.warn(`  → Using fallback mapping: "${rewardKey}"`);
+                }
+              }
+
+              // Filter gifts if we have API data
+              let filteredGifts = award.gifts || [];
+              if (rewardKey && apiGiftLists[rewardKey] && apiGiftLists[rewardKey].length > 0) {
+                const allowedValues = apiGiftLists[rewardKey].map(item => item.value);
+                filteredGifts = (award.gifts || []).filter(gift => 
+                  allowedValues.includes(gift.name)
+                );
+                
+                console.log(`🔍 [${award.title}] Filtered:`, {
+                  total: award.gifts?.length || 0,
+                  allowed: filteredGifts.length,
+                  allowedValues
+                });
+              }
+
+              return {
+                title: award.title,
+                description: award.description,
+                gifts: filteredGifts
+              };
+            });
+
+            setRewardLevels(formattedAwards);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading introduction data:', error);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    loadData();
   }, []);
 
   return (
     <div className="full-height introduction-page-bg" style={{ paddingBottom: '80px' }}>
-      <div className="header-no-bg">
-        <img src={logo} alt="M.Ambassador Logo" className="ambassador-logo" />
-      </div>
+      {loading ? (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <Spin 
+            indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
+            size="large"
+          />
+          <Text style={{ fontSize: '16px', color: '#666' }}>
+            Đang tải thông tin chương trình...
+          </Text>
+        </div>
+      ) : (
+        <>
+          <div className="header-no-bg">
+            <img src={logo} alt="M.Ambassador Logo" className="ambassador-logo" />
+          </div>
 
-      <div className="container">
+          <div className="container">
         <Card style={{ marginBottom: 16 }}>
           <Title level={4}>Xin chào {userName}!</Title>
           
@@ -174,6 +286,8 @@ const IntroductionPage = () => {
         <span style={{ flex: 1, textAlign: 'center' }}>TIẾP TỤC</span>
         <RightOutlined style={{ position: 'absolute', right: 16 }} />
       </Button>
+      </>
+      )}
     </div>
   );
 };

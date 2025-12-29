@@ -10,11 +10,11 @@ class RewardApiService {
   }
 
   /**
-   * Get API endpoint from localStorage
+   * Get API endpoint - fixed to test endpoint
    */
   getApiEndpoint() {
-    return localStorage.getItem('app_reward_api_endpoint') || 
-           'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/';
+    // Always use test endpoint with ?test=1
+    return 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/?test=1';
   }
 
   /**
@@ -23,6 +23,18 @@ class RewardApiService {
   getAuthToken() {
     // Try both 'authToken' (from login) and 'token' (fallback)
     return localStorage.getItem('authToken') || localStorage.getItem('token') || '';
+  }
+
+  /**
+   * Clear expired token and redirect to login
+   */
+  handleExpiredToken() {
+    console.warn('⚠️ Token expired - clearing auth data');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
+    
+    // Optionally redirect to login (uncomment if needed)
+    // window.location.href = '/login';
   }
 
   /**
@@ -51,6 +63,7 @@ class RewardApiService {
         value: rewardData.monthlyReward || '',     // Tên quà monthly
         value1: rewardData.dgccReward || '',       // Tên quà DGCC
         value2: rewardData.cgspReward || '',       // Tên quà CGSP
+        reward_event: rewardData.rewardEvent || '', // e.g., "12_25_th_monthly_reward"
         inserted_at: new Date().toISOString()      // ISO timestamp
       };
       
@@ -162,30 +175,20 @@ class RewardApiService {
    * @returns {Promise<Object>} Reward status data
    */
   async getRewardStatus(phoneNumber) {
-    // ✅ New API endpoint (no auth required)
+    // ✅ API endpoint (NO auth required - public endpoint)
     const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local';
     const endpoint = `${apiBaseUrl}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
-    
-    const token = this.getAuthToken();
 
     try {
       console.log('🔍 GET Reward Status from API:', endpoint);
       console.log('📞 Phone:', phoneNumber);
-
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-        console.log('✅ Sending request WITH Authorization token');
-      } else {
-        console.warn('⚠️ No token found - API may fail');
-      }
+      console.log('✅ No authentication required for this endpoint');
 
       const response = await fetch(endpoint, {
         method: 'GET',
-        headers: headers,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         mode: 'cors'
       });
 
@@ -195,7 +198,7 @@ class RewardApiService {
         let errorText = '';
         try {
           errorText = await response.text();
-          // Only log first 200 chars (avoid huge HTML in console)
+          // Log error response (first 200 chars only)
           console.error('❌ API Error Response:', errorText.substring(0, 200) + '...');
         } catch (e) {
           console.error('❌ Could not read error response');

@@ -137,19 +137,17 @@ const LoginPage = () => {
       // Use obfuscated token instead of plain env variable
       const API_TOKEN = getApiToken();
       
-      // ✅ STEP 1: Call /nvbc_login/ directly
+      // ✅ STEP 1: Call /get_data/get_nvbc_login/ with GET method
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
       let loginResponse;
       try {
-        loginResponse = await fetch(`${API_BASE_URL}/nvbc_login/`, {
-          method: 'POST',
+        loginResponse = await fetch(`${API_BASE_URL}/get_data/get_nvbc_login/?test=1&phone=${phoneNumber.trim()}`, {
+          method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_TOKEN}`
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ phone: phoneNumber.trim() }),
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -220,16 +218,16 @@ const LoginPage = () => {
         phone: loginData.phone,
         ma_kh_dms: loginData.ma_kh_dms,
         insert_referral: loginData.insert_referral,
+        is_valid_invitee: loginData.is_valid_invitee,
         name: loginData.name,
         fullResponse: loginData
       });
 
-      // ✅ STEP 2: Call /nvbc_get_point/ to get reward status
-      const rewardResponse = await fetch(`${API_BASE_URL}/nvbc_get_point/?phone=${phoneNumber}`, {
+      // ✅ STEP 2: Call /get_data/get_nvbc_point/ to get reward status
+      const rewardResponse = await fetch(`${API_BASE_URL}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_TOKEN}`
+          'Content-Type': 'application/json'
         }
       });
 
@@ -256,13 +254,19 @@ const LoginPage = () => {
       localStorage.setItem('userName', loginData.name || 'Quý Dược sĩ');
       localStorage.setItem('authToken', API_TOKEN);
       
-      // ✅ Save reward status to localStorage (from rewardData)
+      // ✅ Merge is_valid_invitee from both APIs (prioritize loginData from new API)
+      const isValidInvitee = loginData.is_valid_invitee !== undefined 
+        ? loginData.is_valid_invitee 
+        : (rewardData.is_valid_invitee || false);
+      
+      // ✅ Save reward status to localStorage (from rewardData + loginData)
       const rewardStatus = {
         show_reward_selection: rewardData.show_reward_selection || false,
         th_monthly_reward: rewardData.th_monthly_reward || false,
         product_expert_reward: rewardData.product_expert_reward || false,
         avid_reader_reward: rewardData.avid_reader_reward || false,
-        point: rewardData.point || 0
+        point: rewardData.point || 0,
+        is_valid_invitee: isValidInvitee
       };
       localStorage.setItem('rewardStatus', JSON.stringify(rewardStatus));
       
@@ -282,17 +286,21 @@ const LoginPage = () => {
       
       message.success('Đăng nhập thành công!');
       
-      // ✅ Check if new user needs to enter referral phone (point = 0)
+      // ✅ Check if user needs to enter referral phone
+      // Only show referral modal if: is_valid_invitee === true AND point === 0
       console.log('🔍 [LoginPage] Checking referral:', {
         point: rewardData.point,
-        isNewUser: rewardData.point === 0,
+        is_valid_invitee_from_login: loginData.is_valid_invitee,
+        is_valid_invitee_from_reward: rewardData.is_valid_invitee,
+        is_valid_invitee_merged: isValidInvitee,
+        shouldShowReferral: isValidInvitee === true && rewardData.point === 0,
         ma_kh_dms: loginData.ma_kh_dms,
         phone: loginData.phone
       });
 
-      if (rewardData.point === 0) {
-        // New user (point = 0) - show referral modal first
-        console.log('✅ [LoginPage] New user detected (point = 0), showing referral modal');
+      if (isValidInvitee === true && rewardData.point === 0) {
+        // Valid invitee with point = 0 - show referral modal
+        console.log('✅ [LoginPage] is_valid_invitee = true AND point = 0, showing referral modal');
         setUserMaKhDms(loginData.ma_kh_dms);
         setShowReferralModal(true);
         
@@ -303,8 +311,15 @@ const LoginPage = () => {
           setPendingNavigation('/introduction');
         }
       } else {
-        // Existing user (point > 0) - navigate directly
-        console.log('ℹ️ [LoginPage] Existing user (point > 0), navigating directly');
+        // Skip referral modal and navigate directly
+        if (isValidInvitee === false) {
+          console.log('ℹ️ [LoginPage] is_valid_invitee = false, skip referral modal');
+        } else if (rewardData.point > 0) {
+          console.log('ℹ️ [LoginPage] User has points (point > 0), skip referral modal');
+        } else {
+          console.log('ℹ️ [LoginPage] Navigating directly (no referral needed)');
+        }
+        
         if (rewardData.show_reward_selection === true) {
           navigate('/reward-selection');
         } else {

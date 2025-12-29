@@ -108,23 +108,23 @@ const RewardSelectionPage = () => {
         }
         
         setRewardData(apiData);
-        loadAvailableGifts();
+        loadAvailableGifts(apiData); // Pass API data
         setLoading(false);
         
       } catch (apiError) {
         console.error('❌ API Error:', apiError);
         console.log('⚠️ API call failed - showing not available message');
         
-        // ✅ FIX: If API fails or returns show_reward_selection = false, 
-        // don't fallback to demo mode. Show proper "not available" message.
-        setRewardData({
+        // ✅ If API fails, show proper "not available" message
+        const fallbackData = {
           show_reward_selection: false,
           fail_show_reward_selection: true,
           point: 0
-        });
+        };
+        setRewardData(fallbackData);
         
         // ✅ Still load gifts for viewing (even if can't select)
-        loadAvailableGifts();
+        loadAvailableGifts(fallbackData); // Pass fallback data
         setLoading(false);
       }
     } catch (err) {
@@ -134,49 +134,147 @@ const RewardSelectionPage = () => {
     }
   };
 
-  const loadAvailableGifts = () => {
+  const loadAvailableGifts = (apiDataParam) => {
+    // Use passed parameter or state
+    const apiData = apiDataParam || rewardData;
+    
     // Load gifts from admin introduction config
     const introConfig = localStorage.getItem('admin_introduction_config');
     if (introConfig) {
       const config = JSON.parse(introConfig);
       const awards = config.awards || [];
 
+      // ✅ Get API gift lists (list_chon_monthly, list_chon_dgcc, list_chon_cgsp)
+      const apiGiftLists = {
+        th_monthly_reward: apiData?.list_chon_monthly || [],
+        product_expert_reward: apiData?.list_chon_cgsp || [], // ← FIXED: cgsp = Chuyên gia sản phẩm
+        avid_reader_reward: apiData?.list_chon_dgcc || [],    // ← FIXED: dgcc = Độc giả chăm chỉ
+        // Also map by API field names directly for flexibility
+        list_chon_monthly: apiData?.list_chon_monthly || [],
+        list_chon_dgcc: apiData?.list_chon_dgcc || [],
+        list_chon_cgsp: apiData?.list_chon_cgsp || []
+      };
+
+      console.log('🎁 API Gift Lists:', apiGiftLists);
+
+      // Mapping from list_chon_xxx to th_monthly_reward flags (for checking if user qualifies)
+      const rewardKeyToFlagMapping = {
+        'list_chon_monthly': 'th_monthly_reward',
+        'list_chon_cgsp': 'product_expert_reward',  // Chuyên gia sản phẩm
+        'list_chon_dgcc': 'avid_reader_reward'      // Độc giả chăm chỉ
+      };
+
+      // Valid reward keys
+      const validRewardKeys = [
+        'th_monthly_reward', 
+        'product_expert_reward', 
+        'avid_reader_reward',
+        'list_chon_monthly',
+        'list_chon_dgcc',
+        'list_chon_cgsp'
+      ];
+
       // ✅ NEW: Dynamic mapping using reward_key from admin config
       const giftsMap = {};
       const rewardMetadata = {}; // Store title, icon, description
       
       awards.forEach(award => {
+        let shouldProcess = true;
+        let rewardKey = award.reward_key;
+        
+        // Check if reward_key is provided and valid
         if (award.reward_key) {
-          // Map gifts by reward_key
-          giftsMap[award.reward_key] = award.gifts || [];
+          if (!validRewardKeys.includes(award.reward_key)) {
+            console.error(`❌ [RewardSelection] Invalid reward_key: "${award.reward_key}" in "${award.title}"`);
+            console.error(`  → Expected one of:`, validRewardKeys);
+            console.error(`  → Skipping this award (no gifts will be shown)`);
+            shouldProcess = false; // Don't process invalid keys
+          }
+        } else {
+          // No reward_key - try fallback
+          console.warn(`⚠️ [RewardSelection] No reward_key for "${award.title}", trying fallback mapping`);
+          const title = award.title.toLowerCase();
+          
+          if (title.includes('tích cực') || title.includes('tháng')) {
+            rewardKey = 'th_monthly_reward';
+          } else if (title.includes('chuyên gia')) {
+            rewardKey = 'product_expert_reward';
+          } else if (title.includes('đọc giả') || title.includes('chăm chỉ')) {
+            rewardKey = 'avid_reader_reward';
+          }
+          
+          if (rewardKey) {
+            console.warn(`  → Using fallback: "${rewardKey}"`);
+          } else {
+            console.warn(`  → No fallback found, skipping`);
+            shouldProcess = false;
+          }
+        }
+        
+        // Only process if we have a valid rewardKey
+        if (shouldProcess && rewardKey) {
+          // ✅ Check if user qualifies for this reward type
+          // If admin uses list_chon_xxx, map it to the flag
+          const flagToCheck = rewardKeyToFlagMapping[rewardKey] || rewardKey;
+          const userQualifies = apiData?.[flagToCheck] === true;
+          
+          if (!userQualifies) {
+            console.log(`⚠️ [RewardSelection] User does not qualify for "${rewardKey}" (${flagToCheck} = ${apiData?.[flagToCheck]})`);
+            shouldProcess = false;
+          }
+        }
+        
+        // Only process if user qualifies and has valid reward key
+        if (shouldProcess && rewardKey) {
+          // Get allowed gift names from API
+          const allowedGiftValues = (apiGiftLists[rewardKey] || []).map(item => {
+            // Normalize: trim, lowercase, replace special dashes
+            return (item.value || '')
+              .trim()
+              .toLowerCase()
+              .replace(/[\u2013\u2014\u2015]/g, '-') // Replace em-dash, en-dash with hyphen
+              .replace(/\s+/g, ' '); // Normalize multiple spaces to single space
+          });
+          
+          console.log(`🔍 Filtering ${rewardKey}:`, {
+            adminGifts: award.gifts?.length || 0,
+            allowedValues: allowedGiftValues
+          });
+
+          // Filter admin gifts - only keep gifts with name matching API values
+          const filteredGifts = (award.gifts || []).filter(gift => {
+            const giftNameNormalized = (gift.name || '')
+              .trim()
+              .toLowerCase()
+              .replace(/[\u2013\u2014\u2015]/g, '-') // Replace em-dash, en-dash with hyphen
+              .replace(/\s+/g, ' '); // Normalize multiple spaces to single space
+            
+            const isAllowed = allowedGiftValues.includes(giftNameNormalized);
+            
+            if (!isAllowed) {
+              console.log(`  ❌ Filtered out: "${gift.name}" (not in API list)`);
+              console.log(`    → Normalized: "${giftNameNormalized}"`);
+              console.log(`    → Allowed values:`, allowedGiftValues);
+            } else {
+              console.log(`  ✅ Allowed: "${gift.name}"`);
+            }
+            return isAllowed;
+          });
+
+          // Map filtered gifts by reward_key
+          giftsMap[rewardKey] = filteredGifts;
+          
+          // ✅ ALSO map by flag name for UI rendering (if using list_chon_xxx key)
+          if (rewardKeyToFlagMapping[rewardKey]) {
+            const flagName = rewardKeyToFlagMapping[rewardKey];
+            giftsMap[flagName] = filteredGifts;
+          }
           
           // Store metadata for display (without icons)
-          rewardMetadata[award.reward_key] = {
+          rewardMetadata[rewardKey] = {
             title: award.title,
             description: award.description
           };
-        } else {
-          // ⚠️ Fallback: Old mapping by title keywords (for backward compatibility)
-          const title = award.title.toLowerCase();
-          if (title.includes('tích cực') || title.includes('tháng')) {
-            giftsMap.th_monthly_reward = award.gifts || [];
-            rewardMetadata.th_monthly_reward = {
-              title: award.title,
-              description: award.description
-            };
-          } else if (title.includes('chuyên gia')) {
-            giftsMap.product_expert_reward = award.gifts || [];
-            rewardMetadata.product_expert_reward = {
-              title: award.title,
-              description: award.description
-            };
-          } else if (title.includes('đọc giả') || title.includes('chăm chỉ')) {
-            giftsMap.avid_reader_reward = award.gifts || [];
-            rewardMetadata.avid_reader_reward = {
-              title: award.title,
-              description: award.description
-            };
-          }
         }
       });
 
@@ -185,7 +283,7 @@ const RewardSelectionPage = () => {
       // Store metadata in state (add new state if needed)
       window.rewardMetadata = rewardMetadata; // Temporary global storage
       
-      console.log('✅ Available gifts (dynamic mapping):', giftsMap);
+      console.log('✅ Available gifts (filtered by API):', giftsMap);
       console.log('✅ Reward metadata:', rewardMetadata);
     }
   };
@@ -262,7 +360,8 @@ const RewardSelectionPage = () => {
         phone: phoneNumber,
         monthlyReward: selectedGifts['th_monthly_reward']?.name || '',
         dgccReward: selectedGifts['product_expert_reward']?.name || '',
-        cgspReward: selectedGifts['avid_reader_reward']?.name || ''
+        cgspReward: selectedGifts['avid_reader_reward']?.name || '',
+        rewardEvent: rewardData.reward_event || ''  // e.g., "12_25_th_monthly_reward"
       };
       
       console.log('📤 Posting reward selection to external API...');
@@ -552,7 +651,16 @@ const RewardSelectionPage = () => {
                     ))}
                   </Row>
                 ) : (
-                  <Empty description="Chưa có quà nào" />
+                  <Empty 
+                    description={
+                      <Space direction="vertical" size="small">
+                        <Text type="secondary">Chưa có quà nào</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Quà chưa được cấu hình hoặc không có trong danh sách cho phép
+                        </Text>
+                      </Space>
+                    } 
+                  />
                 )}
               </Card>
             );
@@ -660,11 +768,15 @@ const RewardSelectionPage = () => {
 
       <div className="container" style={{ marginTop: '20px', paddingBottom: '100px' }}>
         {/* Reward Sections */}
-        {rewardTypes.map((type) => (
-          <Card key={type} title={getRewardTitle(type)} style={{ marginBottom: 24 }}>
-            {availableGifts[type] && availableGifts[type].length > 0 ? (
-              <Row gutter={[16, 16]}>
-                {availableGifts[type].map((gift, giftIndex) => {
+        {rewardTypes.map((type) => {
+          const gifts = availableGifts[type] || []; // Default to empty array
+          const hasGifts = gifts.length > 0;
+          
+          return (
+            <Card key={type} title={getRewardTitle(type)} style={{ marginBottom: 24 }}>
+              {hasGifts ? (
+                <Row gutter={[16, 16]}>
+                  {gifts.map((gift, giftIndex) => {
                   const isSelected = selectedGifts[type]?.name === gift.name;
                   return (
                     <Col xs={12} sm={8} md={6} lg={4} xl={4} key={giftIndex}>
@@ -710,10 +822,20 @@ const RewardSelectionPage = () => {
                 })}
               </Row>
             ) : (
-              <Empty description="Chưa có quà nào được cấu hình" />
+              <Empty 
+                description={
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary">Chưa có quà nào</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Quà chưa được cấu hình hoặc không có trong danh sách cho phép
+                    </Text>
+                  </Space>
+                } 
+              />
             )}
           </Card>
-        ))}
+          );
+        })}
 
         {/* Submit Button */}
         <div style={{ 

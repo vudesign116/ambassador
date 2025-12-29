@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Token Expiry - Ambassador App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: monospace;
+      box-sizing: border-box;
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    button.secondary {
+      background: #52c41a;
+    }
+    button.warning {
+      background: #faad14;
+    }
+    button.danger {
+      background: #ff4d4f;
+    }
+    .result {
+      margin-top: 30px;
+      padding: 20px;
+      border-radius: 8px;
+      background: #f5f5f5;
+      border-left: 4px solid #667eea;
+    }
+    .result.success {
+      background: #f6ffed;
+      border-left-color: #52c41a;
+    }
+    .result.error {
+      background: #fff2f0;
+      border-left-color: #ff4d4f;
+    }
+    .result.warning {
+      background: #fffbe6;
+      border-left-color: #faad14;
+    }
+    pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .info-box {
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .info-box h3 {
+      margin-top: 0;
+      color: #1890ff;
+    }
+    .token-info {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .token-info p {
+      margin: 5px 0;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .token-info strong {
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Test Token Expiry</h1>
+    <p class="subtitle">Kiểm tra token xác thực có hết hạn không</p>
+
+    <div class="info-box">
+      <h3>📋 Hướng dẫn sử dụng:</h3>
+      <ol>
+        <li>Click <strong>"Load Token from LocalStorage"</strong> để lấy token hiện tại</li>
+        <li>Hoặc paste token của bạn vào ô bên dưới</li>
+        <li>Click <strong>"Test Token"</strong> để kiểm tra API</li>
+        <li>Nếu lỗi 401, click <strong>"Clear Token"</strong> để xóa token cũ</li>
+      </ol>
+    </div>
+
+    <div class="token-info" id="currentTokenInfo">
+      <p><strong>Current Token:</strong> <span id="currentToken">Chưa load</span></p>
+      <p><strong>Phone Number:</strong> <span id="currentPhone">Chưa load</span></p>
+    </div>
+
+    <div class="form-group">
+      <label>📞 Số điện thoại:</label>
+      <input type="text" id="phoneInput" placeholder="0123456789">
+    </div>
+
+    <div class="form-group">
+      <label>🔑 Auth Token (Bearer):</label>
+      <textarea id="tokenInput" placeholder="Paste your token here..."></textarea>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <button onclick="loadFromLocalStorage()">📥 Load Token from LocalStorage</button>
+      <button class="secondary" onclick="testToken()">✅ Test Token</button>
+      <button class="warning" onclick="testWithoutToken()">⚠️ Test Without Token</button>
+      <button class="danger" onclick="clearToken()">🗑️ Clear Token</button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const API_BASE_URL = 'https://bi.meraplion.com/local';
+
+    function loadFromLocalStorage() {
+      // Try multiple token keys
+      const authToken = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
+      const phoneNumber = localStorage.getItem('phoneNumber');
+
+      const foundToken = authToken || token;
+
+      if (foundToken) {
+        document.getElementById('tokenInput').value = foundToken;
+        document.getElementById('currentToken').textContent = foundToken.substring(0, 50) + '...';
+        showResult('✅ Token loaded from localStorage', 'success');
+      } else {
+        document.getElementById('currentToken').textContent = 'Không tìm thấy';
+        showResult('⚠️ No token found in localStorage. Please login first.', 'warning');
+      }
+
+      if (phoneNumber) {
+        document.getElementById('phoneInput').value = phoneNumber;
+        document.getElementById('currentPhone').textContent = phoneNumber;
+      } else {
+        document.getElementById('currentPhone').textContent = 'Không tìm thấy';
+      }
+    }
+
+    async function testToken() {
+      const phone = document.getElementById('phoneInput').value.trim();
+      const token = document.getElementById('tokenInput').value.trim();
+
+      if (!phone) {
+        showResult('❌ Please enter phone number', 'error');
+        return;
+      }
+
+      if (!token) {
+        showResult('❌ Please enter token or load from localStorage', 'error');
+        return;
+      }
+
+      showResult('⏳ Testing API with token...', 'info');
+
+      try {
+        const endpoint = `${API_BASE_URL}/get_data/get_nvbc_point/?phone=${phone}&test=1`;
+        
+        console.log('🔍 Testing endpoint:', endpoint);
+        console.log('🔑 Using token:', token.substring(0, 20) + '...');
+
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          mode: 'cors'
+        });
+
+        console.log('📡 Response status:', response.status);
+
+        const responseText = await response.text();
+        let responseData;
+
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (e) {
+          responseData = responseText;
+        }
+
+        if (response.status === 401) {
+          // Token expired or invalid
+          showResult(
+            `❌ Token is EXPIRED or INVALID (401 Unauthorized)\n\n` +
+            `Error Details:\n${JSON.stringify(responseData, null, 2)}\n\n` +
+            `⚠️ Please click "Clear Token" and login again.`,
+            'error'
+          );
+        } else if (response.ok) {
+          // Success
+          showResult(
+            `✅ Token is VALID!\n\n` +
+            `API Response:\n${JSON.stringify(responseData, null, 2)}`,
+            'success'
+          );
+        } else {
+          // Other error
+          showResult(
+            `⚠️ API Error (${response.status} ${response.statusText})\n\n` +
+            `Response:\n${JSON.stringify(responseData, null, 2)}`,
+            'warning'
+          );
+        }
+
+      } catch (error) {
+        showResult(`❌ Network Error:\n\n${error.message}`, 'error');
+        console.error('Error:', error);
+      }
+    }
+
+    async function testWithoutToken() {
+      const phone = document.getElementById('phoneInput').value.trim();
+
+      if (!phone) {
+        showResult('❌ Please enter phone number', 'error');
+        return;
+      }
+
+      showResult('⏳ Testing API without token...', 'info');
+
+      try {
+        const endpoint = `${API_BASE_URL}/get_data/get_nvbc_point/?phone=${phone}&test=1`;
+        
+        console.log('🔍 Testing endpoint (no auth):', endpoint);
+
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors'
+        });
+
+        console.log('📡 Response status:', response.status);
+
+        const responseText = await response.text();
+        let responseData;
+
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (e) {
+          responseData = responseText;
+        }
+
+        if (response.ok) {
+          showResult(
+            `✅ API works WITHOUT token!\n\n` +
+            `API Response:\n${JSON.stringify(responseData, null, 2)}\n\n` +
+            `💡 This means the API doesn't require authentication.`,
+            'success'
+          );
+        } else {
+          showResult(
+            `⚠️ API Error (${response.status} ${response.statusText})\n\n` +
+            `Response:\n${JSON.stringify(responseData, null, 2)}`,
+            'warning'
+          );
+        }
+
+      } catch (error) {
+        showResult(`❌ Network Error:\n\n${error.message}`, 'error');
+        console.error('Error:', error);
+      }
+    }
+
+    function clearToken() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
+      
+      document.getElementById('tokenInput').value = '';
+      document.getElementById('currentToken').textContent = 'Đã xóa';
+      
+      showResult('✅ Token cleared from localStorage. Please login again.', 'success');
+    }
+
+    function showResult(message, type = 'info') {
+      const resultDiv = document.getElementById('result');
+      resultDiv.className = `result ${type}`;
+      resultDiv.innerHTML = `<pre>${message}</pre>`;
+    }
+
+    // Auto-load on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadFromLocalStorage();
+    });
+  </script>
+</body>
+</html>
