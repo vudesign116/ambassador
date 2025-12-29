@@ -143,15 +143,14 @@ export const getUserInfo = async (phone) => {
       return { success: false, reason: 'missing_phone' };
     }
 
-    const apiUrl = 'https://bi.meraplion.com/local/nvbc_login/';
+    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_login/?test=1&phone=${cleanPhone}`;
     console.log('[API] Getting user info via login:', cleanPhone);
 
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ phone: cleanPhone }),
     });
 
     if (!response.ok) {
