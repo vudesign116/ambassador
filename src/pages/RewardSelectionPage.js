@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Typography, Space, Row, Col, Badge, Spin, Alert, Modal, Empty, message } from 'antd';
-import { ArrowLeftOutlined, CheckCircleFilled, CheckCircleOutlined, GiftOutlined, TrophyOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckCircleFilled, CheckCircleOutlined, GiftOutlined, TrophyOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { trackUserActivity } from '../utils/trackingHelper';
 import rewardApiService from '../services/rewardApiService';
 import '../styles/RewardSelection.css';
@@ -609,6 +609,25 @@ const RewardSelectionPage = () => {
                 <Paragraph style={{ fontSize: 16, color: '#666', marginBottom: 24 }}>
                   Chưa được công bố. Hãy tiếp tục hoạt động thật nhiều để nâng điểm số và nhận được các giải thưởng hấp dẫn!
                 </Paragraph>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <Button 
+                    icon={<UnorderedListOutlined />}
+                    onClick={() => navigate('/introduction')}
+                    size="large"
+                    className="gradient-purple-button"
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      height: '48px',
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      minWidth: '240px',
+                      color: 'white'
+                    }}
+                  >
+                    Xem danh sách quà tặng
+                  </Button>
+                </div>
               </>
             )}
           </Card>

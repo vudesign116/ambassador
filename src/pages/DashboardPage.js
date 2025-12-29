@@ -850,7 +850,7 @@ const DashboardPage = () => {
                       }}>
                         <Space>
                           <FireOutlined style={{ color: '#ff4d4f', fontSize: 15 }} />
-                          <Text strong style={{ fontSize: 13 }}>Chuỗi hiện tại: {currentStreak} ngày</Text>
+                          <Text strong style={{ fontSize: 11 }}>Chuỗi hiện tại: {currentStreak} ngày</Text>
                         </Space>
                         <Tag color="gold" style={{ margin: 0, fontSize: 11 }}>
                           Tổng thưởng đã nhận: +{streakPoints} điểm

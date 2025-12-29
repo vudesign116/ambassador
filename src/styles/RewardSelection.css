@@ -164,3 +164,20 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* Purple gradient button */
+.gradient-purple-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+  transition: all 0.3s ease !important;
+}
+
+.gradient-purple-button:hover {
+  background: linear-gradient(135deg, #7c8ff0 0%, #8a5ab8 100%) !important;
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5) !important;
+  transform: translateY(-2px);
+}
+
+.gradient-purple-button:active {
+  transform: translateY(0);
+}
