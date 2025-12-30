@@ -313,8 +313,10 @@ const DashboardPage = () => {
             // AND calculate max points per category
             const documentCategoryMap = {};
             if (data.contentlist && Array.isArray(data.contentlist)) {
+              console.log('[CATEGORY STATS] Building documentCategoryMap from contentlist:', data.contentlist.length, 'categories');
               data.contentlist.forEach(content => {
                 const categoryName = categoryMap[content.category];
+                console.log('[CATEGORY STATS] Processing category:', content.category, '→', categoryName, 'Subcategories:', content.subcategories?.length);
                 if (categoryName && content.subcategories && Array.isArray(content.subcategories)) {
                   // Calculate total max points for this category
                   let categoryTotal = 0;
@@ -322,26 +324,43 @@ const DashboardPage = () => {
                     if (doc.document_id) {
                       documentCategoryMap[doc.document_id] = content.category;
                       categoryTotal += (doc.point || 0);
+                      console.log('[CATEGORY STATS]   - Doc ID:', doc.document_id, '→ Category:', content.category, 'Points:', doc.point);
                     }
                   });
                   categoryMaxPoints[categoryName] = categoryTotal;
                 }
               });
+              console.log('[CATEGORY STATS] documentCategoryMap:', documentCategoryMap);
             }
 
             // Count points from API history using effective_point (NEW API STRUCTURE) - monthly only
+            console.log('[CATEGORY STATS] Starting monthly filter. Current month:', currentMonth, 'Year:', currentYear);
             if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
               data.lich_su_diem.forEach(item => {
+                const isMonthly = isCurrentMonth(item.inserted_at);
+                console.log('[CATEGORY STATS] Document:', item.document_id, 'Date:', item.inserted_at, 'isCurrentMonth:', isMonthly, 'Points:', item.effective_point || item.point);
+                
                 // Only count points from current month
-                if (isCurrentMonth(item.inserted_at)) {
+                if (isMonthly) {
                   const category = documentCategoryMap[item.document_id];
+                  console.log('[CATEGORY STATS]   → Found category in map:', category, 'for doc:', item.document_id);
+                  
+                  let categoryName;
                   if (category) {
-                    const categoryName = categoryMap[category];
-                    if (categoryName) {
-                      // Use effective_point from new API structure
-                      const points = item.effective_point || item.point || 0;
-                      categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
-                    }
+                    categoryName = categoryMap[category];
+                    console.log('[CATEGORY STATS]   → Mapped to categoryName:', categoryName);
+                  } else {
+                    // Fallback: If document not found in contentlist (e.g., MerapLion quota exceeded)
+                    // Assign to MerapLion category by default
+                    categoryName = 'MerapLion';
+                    console.log('[CATEGORY STATS]   → Category not in map, defaulting to MerapLion');
+                  }
+                  
+                  if (categoryName) {
+                    // Use effective_point from new API structure
+                    const points = item.effective_point || item.point || 0;
+                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
+                    console.log('[CATEGORY STATS]   → Added', points, 'points to', categoryName, '→ Total now:', categoryPoints[categoryName]);
                   }
                 }
               });
@@ -417,6 +436,9 @@ const DashboardPage = () => {
               value: categoryPoints[name],
               maxPoints: categoryMaxPoints[name] || 1 // Avoid division by zero
             }));
+
+            console.log('[CATEGORY STATS] Final categoryPoints:', categoryPoints);
+            console.log('[CATEGORY STATS] Final stats for RadarChart:', stats);
 
             // Ensure all categories appear in radar chart (even with 0 points)
             const allCategories = [...Object.values(categoryMap), 'Điểm Giới thiệu', 'Điểm Duy trì'];
