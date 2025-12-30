@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test POST Document ID=15</title>
+</head>
+<body>
+    <h1>Test POST Document API</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function testPostDocument() {
+            const resultDiv = document.getElementById('result');
+            
+            // Get data from localStorage (simulating logged in user)
+            const phoneNumber = localStorage.getItem('phoneNumber') || '0988888888';
+            const ma_kh_dms = localStorage.getItem('ma_kh_dms') || 'TEST_MKH';
+            
+            // Test data
+            const payload = [{
+                ma_kh_dms: ma_kh_dms,
+                phone: phoneNumber,
+                document_id: "15",
+                watch_duration_seconds: 120,  // 120 seconds = full time
+                time_rate: 1.0,  // 100%
+                base_point: 4,
+                effective_point: 4,
+                inserted_at: new Date().toISOString().replace('T', ' ').split('.')[0]
+            }];
+            
+            resultDiv.innerHTML = '<h3>Sending POST request...</h3>';
+            resultDiv.innerHTML += '<pre>Payload:\n' + JSON.stringify(payload, null, 2) + '</pre>';
+            
+            try {
+                const apiUrl = 'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1';
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                resultDiv.innerHTML += '<h3>Response Status: ' + response.status + '</h3>';
+                
+                const result = await response.json();
+                resultDiv.innerHTML += '<pre>Response:\n' + JSON.stringify(result, null, 2) + '</pre>';
+                
+                if (response.ok) {
+                    resultDiv.innerHTML += '<h3 style="color: green;">✅ SUCCESS</h3>';
+                } else {
+                    resultDiv.innerHTML += '<h3 style="color: red;">❌ FAILED</h3>';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += '<h3 style="color: red;">Error: ' + error.message + '</h3>';
+            }
+        }
+        
+        // Auto run on load
+        window.onload = testPostDocument;
+    </script>
+</body>
+</html>

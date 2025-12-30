@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, List, Button, Dropdown, Modal, Spin, Typography, Space, Badge, Empty, Tag, Row, Col, Statistic } from 'antd';
+import { Card, List, Button, Dropdown, Modal, Spin, Typography, Space, Badge, Empty, Tag, Row, Col, Statistic, message } from 'antd';
 import { HomeOutlined, AppstoreOutlined, MenuOutlined, HistoryOutlined, GiftOutlined, LogoutOutlined, PlayCircleOutlined, RightOutlined, FireOutlined, RocketOutlined } from '@ant-design/icons';
 import UserBadge from '../components/UserBadge';
 import RadarChart from '../components/RadarChart';
@@ -36,6 +36,7 @@ const DashboardPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const userName = localStorage.getItem('userName') || 'Phạm Thị Hương';
   const phoneNumber = localStorage.getItem('phoneNumber');
+  const currentMonth = new Date().getMonth() + 1; // 1-12, không cần state vì không thay đổi
   
   // Point breakdown for 4 blocks
   const [videoPoints, setVideoPoints] = useState(0);
@@ -143,6 +144,17 @@ const DashboardPage = () => {
         if (response.ok) {
           const data = await response.json();
           
+          console.log('[DASHBOARD] Full API response:', {
+            point: data.point,
+            referral_point: data.referral_point,
+            hasLichSuDiem: !!data.lich_su_diem,
+            lichSuDiemLength: data.lich_su_diem?.length,
+            hasLichSuReferral: !!data.lich_su_diem_referral,
+            hasLichSuStreak: !!data.lich_su_diem_streak,
+            hasStreak7Days: !!data.streak_last_7_days,
+            streak7DaysData: data.streak_last_7_days
+          });
+          
           // Save API points to manager (with contentlist to map type)
           if (data && typeof data.point === 'number') {
             const apiHistory = data.lich_su_diem || [];
@@ -153,40 +165,121 @@ const DashboardPage = () => {
             PointsManager.markAPIHistoryAsViewed(apiHistory);
           }
           
-          // Get total points (API + Session + Referral + Streak)
-          let totalPoints = PointsManager.getTotalPoints();
+          // Get total points (API + Session + Referral + Streak) - for badge
+          const totalPoints = PointsManager.getTotalPoints();
           
-          // Calculate video/document points
-          let totalVideoPoints = 0;
+          // Helper function to check if date is in current month
+          const currentMonth = new Date().getMonth();
+          const currentYear = new Date().getFullYear();
+          const isCurrentMonth = (dateString) => {
+            if (!dateString) return false;
+            const date = new Date(dateString);
+            return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+          };
+          
+          // Calculate video/document points (monthly only for display)
+          let monthlyVideoPoints = 0;
           if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
-            totalVideoPoints = data.lich_su_diem.reduce((sum, item) => {
-              return sum + (item.effective_point || item.point || 0);
-            }, 0);
+            data.lich_su_diem.forEach(item => {
+              if (isCurrentMonth(item.inserted_at)) {
+                monthlyVideoPoints += (item.effective_point || item.point || 0);
+              }
+            });
           }
-          setVideoPoints(totalVideoPoints);
+          setVideoPoints(monthlyVideoPoints);
           
-          // Add referral points
+          // Add referral points (monthly only for display)
           let totalReferralPoints = 0;
+          let monthlyReferralPoints = 0;
+          
+          console.log('[DASHBOARD] Referral data check:', {
+            hasReferralPoint: typeof data.referral_point === 'number',
+            referralPoint: data.referral_point,
+            hasReferralHistory: Array.isArray(data.lich_su_diem_referral),
+            referralHistoryLength: data.lich_su_diem_referral?.length,
+            referralHistoryData: data.lich_su_diem_referral?.slice(0, 3) // First 3 items
+          });
+          
           if (data && typeof data.referral_point === 'number') {
             totalReferralPoints = data.referral_point;
-            totalPoints += totalReferralPoints;
           }
-          setReferralPoints(totalReferralPoints);
           
-          // Add streak bonus points
+          // Try to calculate monthly referral from history
+          if (data.lich_su_diem_referral && Array.isArray(data.lich_su_diem_referral)) {
+            data.lich_su_diem_referral.forEach(item => {
+              console.log('[DASHBOARD] Referral item check:', {
+                inserted_at: item.inserted_at,
+                point: item.point,
+                isCurrentMonth: isCurrentMonth(item.inserted_at)
+              });
+              if (isCurrentMonth(item.inserted_at)) {
+                monthlyReferralPoints += (item.point || 0);
+              }
+            });
+            console.log('[DASHBOARD] Monthly referral from history:', monthlyReferralPoints);
+            
+            // If no monthly data found, use total as fallback
+            if (monthlyReferralPoints === 0 && totalReferralPoints > 0) {
+              console.log('[DASHBOARD] No monthly referral data, using total:', totalReferralPoints);
+              monthlyReferralPoints = totalReferralPoints;
+            }
+          } else {
+            // Fallback: if no history, use total referral point as monthly (assuming all in current month)
+            monthlyReferralPoints = totalReferralPoints;
+            console.log('[DASHBOARD] Using total referral as monthly (no history):', monthlyReferralPoints);
+          }
+          setReferralPoints(monthlyReferralPoints);
+          
+          // Add streak bonus points (monthly only for display)
           let totalStreakBonus = 0;
+          let monthlyStreakBonus = 0;
+          
+          console.log('[DASHBOARD] Streak data check:', {
+            hasStreak7Days: Array.isArray(data.streak_last_7_days),
+            streak7DaysLength: data.streak_last_7_days?.length,
+            hasStreakHistory: Array.isArray(data.lich_su_diem_streak),
+            streakHistoryLength: data.lich_su_diem_streak?.length,
+            streakHistoryData: data.lich_su_diem_streak?.slice(0, 3) // First 3 items
+          });
+          
           if (data && data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
             totalStreakBonus = data.streak_last_7_days.reduce((sum, day) => sum + (day.bonus_point || 0), 0);
-            totalPoints += totalStreakBonus;
+            console.log('[DASHBOARD] Total streak from 7 days:', totalStreakBonus);
             // Save streak data for timeline display
             setStreakData(data.streak_last_7_days);
           }
-          setStreakPoints(totalStreakBonus);
+          
+          // Try to calculate monthly streak from history
+          if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
+            data.lich_su_diem_streak.forEach(item => {
+              console.log('[DASHBOARD] Streak item check:', {
+                inserted_at: item.inserted_at,
+                bonus_point: item.bonus_point,
+                isCurrentMonth: isCurrentMonth(item.inserted_at)
+              });
+              if (isCurrentMonth(item.inserted_at)) {
+                monthlyStreakBonus += (item.bonus_point || 0);
+              }
+            });
+            console.log('[DASHBOARD] Monthly streak from history:', monthlyStreakBonus);
+            
+            // If no monthly data found, use total from 7 days as fallback
+            if (monthlyStreakBonus === 0 && totalStreakBonus > 0) {
+              console.log('[DASHBOARD] No monthly streak data, using 7 days total:', totalStreakBonus);
+              monthlyStreakBonus = totalStreakBonus;
+            }
+          } else {
+            // Fallback: if no history, use total streak as monthly
+            monthlyStreakBonus = totalStreakBonus;
+            console.log('[DASHBOARD] Using total streak as monthly (no history):', monthlyStreakBonus);
+          }
+          setStreakPoints(monthlyStreakBonus);
           
           // Mini game points (TODO: from API when available)
           setMiniGamePoints(0);
           
-          setUserScore(totalPoints);
+          // Set userScore for badge (total points - unchanged)
+          setUserScore(totalPoints + totalReferralPoints + totalStreakBonus);
 
           // Calculate points by category from contentlist and lich_su_diem
           if (data) {
@@ -236,33 +329,62 @@ const DashboardPage = () => {
               });
             }
 
-            // Count points from API history using effective_point (NEW API STRUCTURE)
+            // Count points from API history using effective_point (NEW API STRUCTURE) - monthly only
             if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
               data.lich_su_diem.forEach(item => {
-                const category = documentCategoryMap[item.document_id];
-                if (category) {
-                  const categoryName = categoryMap[category];
-                  if (categoryName) {
-                    // Use effective_point from new API structure
-                    const points = item.effective_point || item.point || 0;
-                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
+                // Only count points from current month
+                if (isCurrentMonth(item.inserted_at)) {
+                  const category = documentCategoryMap[item.document_id];
+                  if (category) {
+                    const categoryName = categoryMap[category];
+                    if (categoryName) {
+                      // Use effective_point from new API structure
+                      const points = item.effective_point || item.point || 0;
+                      categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
+                    }
                   }
                 }
               });
             }
 
-            // Calculate Referral Points from API
-            if (data.referral_point && typeof data.referral_point === 'number') {
+            // Calculate Referral Points from API - monthly only
+            if (data.lich_su_diem_referral && Array.isArray(data.lich_su_diem_referral)) {
+              let monthlyReferral = 0;
+              data.lich_su_diem_referral.forEach(item => {
+                if (isCurrentMonth(item.inserted_at)) {
+                  monthlyReferral += (item.point || 0);
+                }
+              });
+              categoryPoints['Điểm Giới thiệu'] = monthlyReferral;
+              
+              // Fallback if no monthly data
+              if (monthlyReferral === 0 && data && typeof data.referral_point === 'number') {
+                categoryPoints['Điểm Giới thiệu'] = data.referral_point;
+              }
+            } else if (data && typeof data.referral_point === 'number') {
+              // Fallback: use total referral point if no history
               categoryPoints['Điểm Giới thiệu'] = data.referral_point;
             }
 
-            // Calculate Streak Points from streak_last_7_days
-            if (data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
-              let totalStreakPoints = 0;
-              data.streak_last_7_days.forEach(day => {
-                totalStreakPoints += (day.bonus_point || 0);
+            // Calculate Streak Points - monthly only
+            if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
+              let monthlyStreak = 0;
+              data.lich_su_diem_streak.forEach(item => {
+                if (isCurrentMonth(item.inserted_at)) {
+                  monthlyStreak += (item.bonus_point || 0);
+                }
               });
-              categoryPoints['Điểm Duy trì'] = totalStreakPoints;
+              categoryPoints['Điểm Duy trì'] = monthlyStreak;
+              
+              // Fallback if no monthly data
+              if (monthlyStreak === 0 && data && data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
+                let totalStreak = data.streak_last_7_days.reduce((sum, day) => sum + (day.bonus_point || 0), 0);
+                categoryPoints['Điểm Duy trì'] = totalStreak;
+              }
+            } else if (data && data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
+              // Fallback: use streak_last_7_days total if no history
+              let totalStreak = data.streak_last_7_days.reduce((sum, day) => sum + (day.bonus_point || 0), 0);
+              categoryPoints['Điểm Duy trì'] = totalStreak;
             }
 
             // Also count points from session (earned points)
@@ -373,12 +495,15 @@ const DashboardPage = () => {
                     icon: task.icon,
                     completed: false,
                     category: task.category,
-                    isComingSoon: true
+                    isComingSoon: true,
+                    isDisabled: false
                   };
                 }
 
                 const categoryData = data.contentlist.find(item => item.category === task.apiCategory);
                 let pointRange = '0 điểm';
+                let isDisabled = false;
+                let disabledMessage = '';
 
                 if (categoryData && categoryData.subcategories && Array.isArray(categoryData.subcategories)) {
                   const points = categoryData.subcategories.map(doc => doc.point || 0);
@@ -386,7 +511,17 @@ const DashboardPage = () => {
                     const minPoint = Math.min(...points);
                     const maxPoint = Math.max(...points);
                     pointRange = minPoint === maxPoint ? `${minPoint} điểm` : `${minPoint}-${maxPoint} điểm`;
+                  } else {
+                    // Has category but no documents
+                    isDisabled = true;
+                    pointRange = '0 điểm';
+                    disabledMessage = 'Lượt tài liệu đã được bạn xem hết trong tháng này';
                   }
+                } else {
+                  // Category not found in API response
+                  isDisabled = true;
+                  pointRange = '0 điểm';
+                  disabledMessage = 'Lượt tài liệu đã được bạn xem hết trong tháng này';
                 }
 
                 return {
@@ -395,7 +530,9 @@ const DashboardPage = () => {
                   icon: task.icon,
                   completed: false,
                   category: task.category,
-                  isNew: task.isNew // Preserve NEW flag
+                  isNew: task.isNew, // Preserve NEW flag
+                  isDisabled: isDisabled,
+                  disabledMessage: disabledMessage
                 };
               });
 
@@ -499,6 +636,12 @@ const DashboardPage = () => {
 
   // Handle task item click
   const handleTaskClick = (task) => {
+    // Check if task is disabled (no documents available)
+    if (task.isDisabled) {
+      message.warning(task.disabledMessage || 'Danh mục tạm thời không khả dụng');
+      return;
+    }
+    
     // Special handling for Mini Game
     if (task.category === 'mini-game') {
       if (!task.isComingSoon) {
@@ -637,7 +780,7 @@ const DashboardPage = () => {
                   <UserBadge score={userScore} />
 
                   <Title level={4} style={{ textAlign: 'center', margin: 0 }}>
-                    TỔNG QUAN HOẠT ĐỘNG
+                    TỔNG QUAN HOẠT ĐỘNG THÁNG {currentMonth}
                   </Title>
 
                   <Text type="secondary" style={{ textAlign: 'center', display: 'block', fontSize: 13 }}>
@@ -902,11 +1045,11 @@ const DashboardPage = () => {
                 dataSource={dailyTasks}
                 renderItem={(task) => (
                   <List.Item
-                    onClick={task.isComingSoon ? undefined : () => handleTaskClick(task)}
+                    onClick={(task.isComingSoon || task.isDisabled) ? undefined : () => handleTaskClick(task)}
                     style={{ 
-                      cursor: task.isComingSoon ? 'not-allowed' : 'pointer', 
+                      cursor: (task.isComingSoon || task.isDisabled) ? 'not-allowed' : 'pointer', 
                       padding: '12px 0',
-                      opacity: task.isComingSoon ? 0.6 : 1
+                      opacity: (task.isComingSoon || task.isDisabled) ? 0.6 : 1
                     }}
                     extra={
                       <Button 
@@ -914,9 +1057,9 @@ const DashboardPage = () => {
                         shape="circle" 
                         icon={<RightOutlined />}
                         size="small"
-                        disabled={task.isComingSoon}
+                        disabled={task.isComingSoon || task.isDisabled}
                         style={{
-                          background: task.isComingSoon ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          background: (task.isComingSoon || task.isDisabled) ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                           border: 'none'
                         }}
                       />
@@ -924,12 +1067,12 @@ const DashboardPage = () => {
                   >
                     <List.Item.Meta
                       avatar={
-                        <img src={task.icon} alt={task.title} style={{ width: '32px', height: '32px', objectFit: 'contain', opacity: task.isComingSoon ? 0.5 : 1 }} />
+                        <img src={task.icon} alt={task.title} style={{ width: '32px', height: '32px', objectFit: 'contain', opacity: (task.isComingSoon || task.isDisabled) ? 0.5 : 1 }} />
                       }
                       title={
                         <Space size={8}>
-                          <Text strong style={{ color: task.isComingSoon ? '#999' : 'inherit' }}>{task.title}</Text>
-                          {task.isNew && (
+                          <Text strong style={{ color: (task.isComingSoon || task.isDisabled) ? '#999' : 'inherit' }}>{task.title}</Text>
+                          {task.isNew && !task.isDisabled && (
                             <Tag className="new-label-blink">
                               NEW
                             </Tag>
@@ -937,12 +1080,18 @@ const DashboardPage = () => {
                         </Space>
                       }
                       description={
-                        <Badge 
-                          count={task.points} 
-                          style={{ 
-                            backgroundColor: task.isComingSoon ? '#faad14' : '#52c41a' 
-                          }} 
-                        />
+                        task.isDisabled ? (
+                          <Text type="secondary" style={{ fontSize: 12, color: '#ff4d4f' }}>
+                            {task.disabledMessage}
+                          </Text>
+                        ) : (
+                          <Badge 
+                            count={task.points} 
+                            style={{ 
+                              backgroundColor: task.isComingSoon ? '#faad14' : '#52c41a' 
+                            }} 
+                          />
+                        )
                       }
                     />
                   </List.Item>
@@ -1062,19 +1211,19 @@ const DashboardPage = () => {
           dataSource={dailyTasks}
           renderItem={(task) => (
             <List.Item
-              onClick={task.isComingSoon ? undefined : () => handleTaskClick(task)}
+              onClick={(task.isComingSoon || task.isDisabled) ? undefined : () => handleTaskClick(task)}
               style={{ 
-                cursor: task.isComingSoon ? 'not-allowed' : 'pointer',
-                opacity: task.isComingSoon ? 0.6 : 1
+                cursor: (task.isComingSoon || task.isDisabled) ? 'not-allowed' : 'pointer',
+                opacity: (task.isComingSoon || task.isDisabled) ? 0.6 : 1
               }}
               extra={
                 <Button 
                   type="primary" 
                   shape="circle" 
                   icon={<PlayCircleOutlined />}
-                  disabled={task.isComingSoon}
+                  disabled={task.isComingSoon || task.isDisabled}
                   style={{
-                    background: task.isComingSoon ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: (task.isComingSoon || task.isDisabled) ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     border: 'none'
                   }}
                 />
@@ -1082,16 +1231,29 @@ const DashboardPage = () => {
             >
               <List.Item.Meta
                 avatar={
-                  <img src={task.icon} alt={task.title} style={{ width: '28px', height: '28px', objectFit: 'contain', opacity: task.isComingSoon ? 0.5 : 1 }} />
+                  <img src={task.icon} alt={task.title} style={{ width: '28px', height: '28px', objectFit: 'contain', opacity: (task.isComingSoon || task.isDisabled) ? 0.5 : 1 }} />
                 }
-                title={<span style={{ color: task.isComingSoon ? '#999' : 'inherit' }}>{task.title}</span>}
+                title={
+                  <Space size={8}>
+                    <span style={{ color: (task.isComingSoon || task.isDisabled) ? '#999' : 'inherit' }}>{task.title}</span>
+                    {task.isNew && !task.isDisabled && (
+                      <Tag className="new-label-blink">NEW</Tag>
+                    )}
+                  </Space>
+                }
                 description={
-                  <Badge 
-                    count={task.points} 
-                    style={{ 
-                      backgroundColor: task.isComingSoon ? '#faad14' : '#52c41a' 
-                    }} 
-                  />
+                  task.isDisabled ? (
+                    <Text type="secondary" style={{ fontSize: 12, color: '#ff4d4f' }}>
+                      {task.disabledMessage}
+                    </Text>
+                  ) : (
+                    <Badge 
+                      count={task.points} 
+                      style={{ 
+                        backgroundColor: task.isComingSoon ? '#faad14' : '#52c41a' 
+                      }} 
+                    />
+                  )
                 }
               />
             </List.Item>

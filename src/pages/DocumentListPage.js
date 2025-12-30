@@ -78,6 +78,7 @@ const DocumentListPage = () => {
   const [hasLiked, setHasLiked] = useState(false);
   const [minViewingTime50, setMinViewingTime50] = useState(60); // Default 60s for 50%
   const [minViewingTime100, setMinViewingTime100] = useState(120); // Default 120s for 100%
+  const [enable50PercentMilestone, setEnable50PercentMilestone] = useState(true); // Default enabled
   const [apiStatus, setApiStatus] = useState('idle'); // 'idle' | 'posting' | 'success' | 'error'
   const [apiErrorMessage, setApiErrorMessage] = useState('');
 
@@ -89,16 +90,20 @@ const DocumentListPage = () => {
         const config = JSON.parse(savedConfig);
         const duration50 = config.pointsViewDuration50 || 60;
         const duration100 = config.pointsViewDuration100 || 120;
-        console.log('[CONFIG] Loading admin config - 50%:', duration50, '100%:', duration100);
+        const enable50 = config.enable50PercentMilestone !== undefined ? config.enable50PercentMilestone : true;
+        console.log('[CONFIG] Loading admin config - 50%:', duration50, '100%:', duration100, 'Enable 50%:', enable50);
         setMinViewingTime50(duration50);
         setMinViewingTime100(duration100);
+        setEnable50PercentMilestone(enable50);
       } else {
         // Fallback to localStorage values if available
         const duration50 = localStorage.getItem('app_points_view_duration_50');
         const duration100 = localStorage.getItem('app_points_view_duration_100');
-        console.log('[CONFIG] Loading localStorage config - 50%:', duration50, '100%:', duration100);
+        const enable50 = localStorage.getItem('app_enable_50_percent_milestone');
+        console.log('[CONFIG] Loading localStorage config - 50%:', duration50, '100%:', duration100, 'Enable 50%:', enable50);
         if (duration50) setMinViewingTime50(parseInt(duration50));
         if (duration100) setMinViewingTime100(parseInt(duration100));
+        if (enable50) setEnable50PercentMilestone(enable50 === 'true');
       }
     };
     loadConfig();
@@ -151,6 +156,7 @@ const DocumentListPage = () => {
         const authToken = localStorage.getItem('authToken');
         
         if (!phoneNumber || !authToken) {
+          console.log('[DOCUMENTS] Not logged in, using static data');
           // Fallback to static data if not logged in
           setDocuments(allDocuments[category] || []);
           setApiLoading(false);
@@ -158,6 +164,8 @@ const DocumentListPage = () => {
         }
 
         const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
+        console.log('[DOCUMENTS] Fetching from API:', apiUrl);
+        
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
@@ -167,6 +175,7 @@ const DocumentListPage = () => {
 
         if (response.ok) {
           const data = await response.json();
+          console.log('[DOCUMENTS] API response:', data);
           
           // Map category slug to API category name
           const categoryMap = {
@@ -178,12 +187,17 @@ const DocumentListPage = () => {
           };
 
           const apiCategory = categoryMap[category];
+          console.log('[DOCUMENTS] Looking for category:', apiCategory, 'in contentlist');
           
           if (data.contentlist && Array.isArray(data.contentlist)) {
+            console.log('[DOCUMENTS] contentlist found:', data.contentlist.map(c => c.category));
+            
             // Find the category in contentlist
             const categoryData = data.contentlist.find(item => item.category === apiCategory);
             
             if (categoryData && categoryData.subcategories && Array.isArray(categoryData.subcategories)) {
+              console.log('[DOCUMENTS] ✅ Found', categoryData.subcategories.length, 'documents for', apiCategory);
+              
               // Transform API data to match our document structure
               const transformedDocs = categoryData.subcategories.map(doc => ({
                 id: doc.document_id,
@@ -197,21 +211,25 @@ const DocumentListPage = () => {
               
               setDocuments(transformedDocs);
             } else {
-              // No data for this category, use fallback
-              setDocuments(allDocuments[category] || []);
+              // ❌ Category not found in API response - show empty list
+              console.warn('[DOCUMENTS] ⚠️ Category', apiCategory, 'not found in API response or has no documents');
+              console.warn('[DOCUMENTS] Available categories:', data.contentlist.map(c => c.category).join(', '));
+              setDocuments([]); // ✅ Set empty array instead of fallback
             }
           } else {
-            // No contentlist, use fallback
-            setDocuments(allDocuments[category] || []);
+            // No contentlist in response
+            console.warn('[DOCUMENTS] ⚠️ No contentlist in API response');
+            setDocuments([]); // ✅ Set empty array instead of fallback
           }
         } else {
-          // API failed, use fallback
-          setDocuments(allDocuments[category] || []);
+          // API failed
+          console.error('[DOCUMENTS] ❌ API request failed:', response.status, response.statusText);
+          setDocuments([]); // ✅ Set empty array instead of fallback
         }
       } catch (err) {
-        console.error('Error fetching documents:', err);
-        // On error, use fallback
-        setDocuments(allDocuments[category] || []);
+        console.error('[DOCUMENTS] ❌ Error fetching documents:', err);
+        // On error, show empty list
+        setDocuments([]); // ✅ Set empty array instead of fallback
       } finally {
         setApiLoading(false);
       }
@@ -235,6 +253,14 @@ const DocumentListPage = () => {
   const handleDocumentClick = (document) => {
     // Scroll to top to fix iPhone positioning issue
     window.scrollTo({ top: 0, behavior: 'instant' });
+    
+    console.log('[OPEN DOCUMENT] Config:', {
+      minViewingTime50,
+      minViewingTime100,
+      enable50PercentMilestone,
+      document: document.name,
+      points: document.points
+    });
     
     setCurrentDocument(document);
     currentDocumentRef.current = document; // ✅ Store in ref for timer callbacks
@@ -291,29 +317,28 @@ const DocumentListPage = () => {
           console.log('[TIMER] Time:', newTime, 's | 50%:', minViewingTime50, 's | 100%:', minViewingTime100, 's | viewerOpen:', viewerOpenRef.current);
         }
         
-        // ✅ Calculate points based on 2-tier system (SIMPLE):
-        // - < 60s (50%): 0 points
-        // - >= 60s (50%): 50% points (time_rate = 0.5)
-        // - >= 120s (100%): 100% points (time_rate = 1.0)
+        // ✅ Calculate points based on milestone config
+        // If 50% enabled: 2 tiers (0 → 50% → 100%)
+        // If 50% disabled: 1 tier (0 → 100%)
         const basePoints = parseInt(document.points.replace(/[^\d]/g, '')) || 0;
         let earnedPoints = 0;
         
         if (newTime >= minViewingTime100) {
           // >= 100% → full points
           earnedPoints = basePoints;
-        } else if (newTime >= minViewingTime50) {
-          // >= 50% → half points
+        } else if (enable50PercentMilestone && newTime >= minViewingTime50) {
+          // >= 50% → half points (only if 50% milestone enabled)
           earnedPoints = Math.floor(basePoints * 0.5);
         } else {
-          // < 50% → no points yet
+          // < minimum threshold → no points yet
           earnedPoints = 0;
         }
         
         setEarnedPoints(earnedPoints);
         
-        // 🎉 Track 50% milestone - Show modal popup ONCE
-        // ✅ Safety check: Only show modal if viewer is still open
-        if (!hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpenRef.current) {
+        // 🎉 Track 50% milestone - Show modal popup ONCE (only if enabled)
+        // ✅ Safety check: Only show modal if viewer is still open AND 50% milestone is enabled
+        if (enable50PercentMilestone && !hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpenRef.current) {
           console.log('[50% MILESTONE] ✅ TRIGGERED! newTime:', newTime, 'hasReached50:', hasReached50Percent, 'hasShown50Modal:', hasShown50ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
           setHasReached50Percent(true);
           hasShown50ModalRef.current = true; // Mark as shown
@@ -387,8 +412,16 @@ const DocumentListPage = () => {
               Bạn đã xem được <strong style={{ color: '#ff4d4f', fontSize: 16 }}>{viewingTime} giây</strong>.
             </p>
             <p style={{ fontSize: 13, color: '#666', marginBottom: 12, lineHeight: 1.6 }}>
-              • Xem <strong>{minViewingTime50}s</strong> → Nhận <strong style={{ color: '#1890ff' }}>50% điểm</strong><br/>
-              • Xem <strong>{minViewingTime100}s</strong> → Nhận <strong style={{ color: '#52c41a' }}>100% điểm</strong>
+              {enable50PercentMilestone ? (
+                <>
+                  • Xem <strong>{minViewingTime50}s</strong> → Nhận <strong style={{ color: '#1890ff' }}>50% điểm</strong><br/>
+                  • Xem <strong>{minViewingTime100}s</strong> → Nhận <strong style={{ color: '#52c41a' }}>100% điểm</strong>
+                </>
+              ) : (
+                <>
+                  • Xem <strong>{minViewingTime100}s</strong> → Nhận <strong style={{ color: '#52c41a' }}>100% điểm</strong>
+                </>
+              )}
             </p>
             <p style={{ fontSize: 15, marginBottom: 0, lineHeight: 1.6 }}>
               Bạn có chắc chắn muốn thoát không?
@@ -424,11 +457,12 @@ const DocumentListPage = () => {
     if (reached100 && !hasPostedRef.current) {
       postToAPIAndClose();
     } 
-    // Nếu đã đạt 50%-99% (có điểm) nhưng chưa POST, POST API với điểm hiện tại
-    else if (hasEarnedPoints && !hasPostedRef.current && viewingTime >= minViewingTime50) {
+    // Nếu bật mốc 50% -> đã đạt 50%-99% (có điểm) nhưng chưa POST, POST API với điểm hiện tại
+    else if (enable50PercentMilestone && hasEarnedPoints && !hasPostedRef.current && viewingTime >= minViewingTime50) {
       postToAPIAndClose();
     }
-    // Nếu chưa đạt 50% HOẶC đã POST rồi, thoát luôn
+    // Nếu tắt mốc 50% -> KHÔNG POST API nếu chưa đủ 100%
+    // Nếu chưa đạt mốc HOẶC đã POST rồi, thoát luôn
     else {
       performClose();
     }
@@ -459,20 +493,27 @@ const DocumentListPage = () => {
     console.log('[POST API] Using viewingTime:', currentViewingTime, '(actual:', actualViewingTime, 'state:', viewingTime, ')');
     console.log('[POST API] Document:', docToPost.id, docToPost.name);
     
-    // ✅ Calculate time_rate: ONLY 2 tiers (0.5 or 1.0)
-    // - >= 120s (100%) → time_rate = 1.0
-    // - >= 60s (50%) → time_rate = 0.5
-    // - < 60s → time_rate = 0 (no points)
+    // ✅ Calculate time_rate based on milestone config
+    // If 50% milestone is enabled: 2 tiers (0.5 or 1.0)
+    // If 50% milestone is disabled: ONLY 1 tier (1.0 at 100%, 0 otherwise)
     let timeRate = 0;
     if (currentViewingTime >= minViewingTime100) {
       timeRate = 1.0;  // 100%
-    } else if (currentViewingTime >= minViewingTime50) {
-      timeRate = 0.5;  // 50%
+    } else if (enable50PercentMilestone && currentViewingTime >= minViewingTime50) {
+      timeRate = 0.5;  // 50% (only if enabled)
     } else {
-      timeRate = 0;    // Not enough time
+      // Không đủ thời gian → 0 điểm
+      timeRate = 0;
     }
     
-    console.log('[POST API] time_rate:', timeRate, '(viewingTime:', currentViewingTime, 's)');
+    console.log('[POST API] time_rate:', timeRate, '(viewingTime:', currentViewingTime, 's, enable50%:', enable50PercentMilestone, 'min100:', minViewingTime100, 'min50:', minViewingTime50, ')');
+    
+    // ❌ Nếu time_rate = 0 (chưa đủ thời gian) → không POST API, thoát luôn
+    if (timeRate === 0) {
+      console.log('[POST API] time_rate = 0, không đủ thời gian để ghi nhận điểm. Thoát!');
+      performClose();
+      return;
+    }
     
     // Parse base points from document
     let basePoints = 4; // default
@@ -510,8 +551,8 @@ const DocumentListPage = () => {
         ma_kh_dms, 
         phoneNumber, 
         docToPost.id,        // ✅ Use ref document
-        currentViewingTime,  // ✅ watch_duration_seconds (use actual time)
-        timeRate,            // time_rate (60s=0.5, 120s=1.0)
+        currentViewingTime,  // ✅ watch_duration_seconds (actual viewing time)
+        timeRate,            // time_rate (dynamic: 0.5 at min50%, 1.0 at min100%)
         basePoints,          // base_point
         Math.floor(basePoints * timeRate) // ✅ effective_point (recalculate)
       );
@@ -542,7 +583,7 @@ const DocumentListPage = () => {
         
         // Show success modal with celebration
         const effectivePoints = Math.floor(basePoints * timeRate);
-        Modal.success({
+        const successModal = Modal.success({
           title: '🎊 Hoàn thành & Đã ghi nhận điểm!',
           content: (
             <div>
@@ -560,17 +601,39 @@ const DocumentListPage = () => {
           okText: 'Tuyệt vời!',
           centered: true,
           onOk: () => {
-            performClose();
+            // Không đóng popup xem tài liệu, chỉ đóng thông báo
+            // User có thể tiếp tục xem tài liệu
           }
         });
+        
+        // Auto close modal sau 5s nếu user không bấm
+        setTimeout(() => {
+          successModal.destroy();
+        }, 5000);
       } else {
-        // API failed
+        // API failed - Show error message from server
         console.error('[POST API] Failed:', result.reason, result);
+        
+        // Extract error message (prioritize server message)
+        let errorMessage = result.reason || 'Không thể lưu điểm. Vui lòng thử lại sau!';
+        
+        // Check for specific error types
+        if (result.reason === 'no_endpoint') {
+          errorMessage = 'Hệ thống chưa được cấu hình. Vui lòng liên hệ quản trị viên.';
+        }
+        
         Modal.error({
           title: '⚠️ Lỗi ghi nhận điểm',
-          content: result.reason === 'no_endpoint' 
-            ? 'Hệ thống chưa được cấu hình. Vui lòng liên hệ quản trị viên.'
-            : `Không thể lưu điểm. ${result.reason || 'Vui lòng thử lại sau!'}`,
+          content: (
+            <div>
+              <p style={{ marginBottom: 0 }}>{errorMessage}</p>
+              {result.data?.error_message && (
+                <p style={{ fontSize: 12, color: '#666', marginTop: 8, marginBottom: 0 }}>
+                  Chi tiết: {result.data.error_message}
+                </p>
+              )}
+            </div>
+          ),
           okText: 'Đóng',
           centered: true,
           onOk: () => {
@@ -882,9 +945,38 @@ const DocumentListPage = () => {
               </Text>
             </div>
           </Card>
-        ) : filteredDocuments.length === 0 ? (
+        ) : filteredDocuments.length === 0 && documents.length === 0 ? (
           <Card>
-            <Empty description="Không tìm thấy tài liệu nào" />
+            <Empty 
+              description={
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: '#ff4d4f' }}>
+                    ⚠️ Danh mục tạm thời không khả dụng
+                  </p>
+                  <p style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                    Có thể do một trong các lý do sau:
+                  </p>
+                  <ul style={{ 
+                    textAlign: 'left', 
+                    display: 'inline-block', 
+                    fontSize: 13, 
+                    color: '#666',
+                    paddingLeft: 20
+                  }}>
+                    <li>Bạn đã đạt giới hạn xem tài liệu trong tháng này</li>
+                    <li>Danh mục đang được cập nhật nội dung mới</li>
+                    <li>Hệ thống đang bảo trì</li>
+                  </ul>
+                  <p style={{ fontSize: 13, color: '#1890ff', marginTop: 12 }}>
+                    💡 Vui lòng thử lại vào tháng sau hoặc chọn danh mục khác
+                  </p>
+                </div>
+              }
+            />
+          </Card>
+        ) : filteredDocuments.length === 0 && documents.length > 0 ? (
+          <Card>
+            <Empty description="Không tìm thấy tài liệu phù hợp với từ khóa tìm kiếm" />
           </Card>
         ) : (
           <List

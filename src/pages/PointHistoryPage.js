@@ -18,6 +18,13 @@ const PointHistoryPage = () => {
   const [streakBonus, setStreakBonus] = useState(0);
   const [videoPoints, setVideoPoints] = useState(0);
   const [miniGamePoints, setMiniGamePoints] = useState(0);
+  
+  // Calculate current quarter (1-4)
+  const getCurrentQuarter = () => {
+    const month = new Date().getMonth(); // 0-11
+    return Math.floor(month / 3) + 1; // 1-4
+  };
+  const currentQuarter = getCurrentQuarter();
 
   // Sample data for demo - will be replaced by API call
   const sampleHistory = [
@@ -172,6 +179,18 @@ const PointHistoryPage = () => {
         return;
       }
 
+      // Helper function to check if date is in current quarter
+      const currentYear = new Date().getFullYear();
+      const currentQuarterNum = currentQuarter; // 1-4
+      const isCurrentQuarter = (dateString) => {
+        if (!dateString) return false;
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = date.getMonth(); // 0-11
+        const quarter = Math.floor(month / 3) + 1; // 1-4
+        return year === currentYear && quarter === currentQuarterNum;
+      };
+
       // Call API to get point history (new endpoint)
       const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
       const response = await fetch(apiUrl, {
@@ -207,22 +226,23 @@ const PointHistoryPage = () => {
         });
       }
 
-      // Calculate video & document points
-      let totalVideoPoints = 0;
+      // Calculate video & document points (quarterly only)
+      let quarterlyVideoPoints = 0;
       if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
-        totalVideoPoints = data.lich_su_diem.reduce((sum, item) => {
-          const points = item.effective_point || item.point || 0;
-          return sum + points;
-        }, 0);
+        data.lich_su_diem.forEach(item => {
+          if (isCurrentQuarter(item.inserted_at)) {
+            quarterlyVideoPoints += (item.effective_point || item.point || 0);
+          }
+        });
       }
-      setVideoPoints(totalVideoPoints);
+      setVideoPoints(quarterlyVideoPoints);
 
       // TODO: Mini game points from API when available
       setMiniGamePoints(0);
 
-      // Add Streak bonus history from lich_su_diem_streak (preferred) or streak_last_7_days (fallback)
+      // Add Streak bonus history - quarterly only
       const streakHistory = [];
-      let totalStreakBonus = 0;
+      let quarterlyStreakBonus = 0;
       
       // ✅ Check if API returns lich_su_diem_streak array
       if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
@@ -232,7 +252,9 @@ const PointHistoryPage = () => {
           const streakDate = item.streak_date || item.inserted_at || new Date().toISOString();
           
           if (points > 0) {
-            totalStreakBonus += points;
+            if (isCurrentQuarter(streakDate)) {
+              quarterlyStreakBonus += points;
+            }
             streakHistory.push({
               document_id: 'streak_' + streakDate,
               document_name: 'Điểm Duy trì (Streak)',
@@ -249,7 +271,7 @@ const PointHistoryPage = () => {
       else if (data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
         data.streak_last_7_days.forEach(day => {
           if (day.bonus_point > 0) {
-            totalStreakBonus += day.bonus_point;
+            quarterlyStreakBonus += day.bonus_point; // Assume last 7 days are in current quarter
             streakHistory.push({
               document_id: 'streak_' + day.date,
               document_name: 'Điểm Duy trì (Streak)',
@@ -262,11 +284,11 @@ const PointHistoryPage = () => {
           }
         });
       }
-      setStreakBonus(totalStreakBonus);
+      setStreakBonus(quarterlyStreakBonus);
 
-      // Add Referral history from lich_su_diem_referral array
+      // Add Referral history - quarterly only
       const referralHistory = [];
-      let totalReferral = 0;
+      let quarterlyReferral = 0;
       
       // ✅ Check if API returns lich_su_diem_referral array
       if (data.lich_su_diem_referral && Array.isArray(data.lich_su_diem_referral)) {
@@ -277,6 +299,10 @@ const PointHistoryPage = () => {
           
           console.log('[REFERRAL] Item:', item, 'Points:', points);
           
+          if (isCurrentQuarter(referralDate)) {
+            quarterlyReferral += points;
+          }
+          
           referralHistory.push({
             document_id: 'referral_' + (item.invitee_phone || 'unknown'),
             document_name: 'Điểm Giới thiệu',
@@ -285,14 +311,12 @@ const PointHistoryPage = () => {
             point: points,
             type: 'referral'
           });
-          
-          totalReferral += points;
         });
-        console.log('[REFERRAL] Total:', totalReferral, 'History:', referralHistory);
+        console.log('[REFERRAL] Quarterly:', quarterlyReferral, 'History:', referralHistory);
       } 
       // Fallback to old single referral_point field
       else if (data.referral_point && data.referral_point > 0) {
-        totalReferral = data.referral_point;
+        quarterlyReferral = data.referral_point; // Assume it's in current quarter
         // Get referral date from referral_month_regis if available
         const referralDate = data.referral_month_regis || new Date().toISOString();
         referralHistory.push({
@@ -304,7 +328,7 @@ const PointHistoryPage = () => {
           type: 'referral'
         });
       }
-      setReferralPoints(totalReferral);
+      setReferralPoints(quarterlyReferral);
 
       // Combine all history and sort by date (newest first)
       const combinedHistory = [...history, ...streakHistory, ...referralHistory].sort((a, b) => {
@@ -357,9 +381,8 @@ const PointHistoryPage = () => {
   };
 
   const getTotalPoints = () => {
-    // Use PointsManager to get document points + add referral and streak bonus
-    const documentPoints = PointsManager.getTotalPoints();
-    return documentPoints + referralPoints + streakBonus;
+    // Return quarterly points only: video + referral + streak + minigame
+    return videoPoints + referralPoints + streakBonus + miniGamePoints;
   };
 
   if (loading) {
@@ -422,7 +445,9 @@ const PointHistoryPage = () => {
         <Card style={{ textAlign: 'center', marginBottom: 20 }}>
           <Space direction="vertical" size="small">
             <TrophyOutlined style={{ fontSize: 32, color: '#faad14' }} />
-            <Text type="secondary">Tổng điểm tích lũy</Text>
+            <Text strong style={{ fontSize: 14, color: '#000000', textTransform: 'uppercase' }}>
+              Tổng điểm tích lũy quý {currentQuarter}/{new Date().getFullYear()}
+            </Text>
             <Statistic 
               value={getTotalPoints()} 
               valueStyle={{ color: '#3f8600', fontSize: 36, fontWeight: 'bold' }}

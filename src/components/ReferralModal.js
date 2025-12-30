@@ -71,16 +71,9 @@ const ReferralModal = ({ visible, onClose, userPhone, userMaKhDms }) => {
 
   // Xử lý bỏ qua
   const handleSkip = () => {
-    Modal.confirm({
-      title: 'Bỏ qua nhập người giới thiệu?',
-      content: 'Bạn có thể nhập thông tin này sau. Bạn có chắc muốn bỏ qua?',
-      okText: 'Bỏ qua',
-      cancelText: 'Ở lại',
-      onOk: () => {
-        form.resetFields();
-        onClose(false); // Close without submitting
-      },
-    });
+    // Bỏ qua confirm, đi thẳng vào trang sau
+    form.resetFields();
+    onClose(false); // Close without submitting
   };
 
   // Validate số điện thoại

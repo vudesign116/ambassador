@@ -287,20 +287,20 @@ const LoginPage = () => {
       message.success('Đăng nhập thành công!');
       
       // ✅ Check if user needs to enter referral phone
-      // Only show referral modal if: is_valid_invitee === true AND point === 0
+      // Only show referral modal if: is_valid_invitee === true
       console.log('🔍 [LoginPage] Checking referral:', {
         point: rewardData.point,
         is_valid_invitee_from_login: loginData.is_valid_invitee,
         is_valid_invitee_from_reward: rewardData.is_valid_invitee,
         is_valid_invitee_merged: isValidInvitee,
-        shouldShowReferral: isValidInvitee === true && rewardData.point === 0,
+        shouldShowReferral: isValidInvitee === true,
         ma_kh_dms: loginData.ma_kh_dms,
         phone: loginData.phone
       });
 
-      if (isValidInvitee === true && rewardData.point === 0) {
-        // Valid invitee with point = 0 - show referral modal
-        console.log('✅ [LoginPage] is_valid_invitee = true AND point = 0, showing referral modal');
+      if (isValidInvitee === true) {
+        // Valid invitee - show referral modal
+        console.log('✅ [LoginPage] is_valid_invitee = true, showing referral modal');
         setUserMaKhDms(loginData.ma_kh_dms);
         setShowReferralModal(true);
         
@@ -312,13 +312,7 @@ const LoginPage = () => {
         }
       } else {
         // Skip referral modal and navigate directly
-        if (isValidInvitee === false) {
-          console.log('ℹ️ [LoginPage] is_valid_invitee = false, skip referral modal');
-        } else if (rewardData.point > 0) {
-          console.log('ℹ️ [LoginPage] User has points (point > 0), skip referral modal');
-        } else {
-          console.log('ℹ️ [LoginPage] Navigating directly (no referral needed)');
-        }
+        console.log('ℹ️ [LoginPage] is_valid_invitee = false, skip referral modal');
         
         if (rewardData.show_reward_selection === true) {
           navigate('/reward-selection');

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, InputNumber, Input, Alert, Typography, Card, Form, message } from 'antd';
+import { Button, InputNumber, Input, Alert, Typography, Card, Form, message, Switch } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { saveConfig, loadConfig } from '../utils/configSync';
 
@@ -10,6 +10,7 @@ const AdminGeneralConfig = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [enable50Percent, setEnable50Percent] = useState(true); // Track switch state
 
   useEffect(() => {
     const adminLoggedIn = localStorage.getItem('adminLoggedIn');
@@ -24,15 +25,18 @@ const AdminGeneralConfig = () => {
     const savedConfig = await loadConfig('admin_general_config');
     if (savedConfig) {
       form.setFieldsValue(savedConfig);
+      setEnable50Percent(savedConfig.enable50PercentMilestone !== false); // Update state
     } else {
       // Default values
       form.setFieldsValue({
+        enable50PercentMilestone: true, // Mặc định bật mốc 50%
         pointsViewDuration50: 60,    // 50% points at 60s
         pointsViewDuration100: 120,  // 100% points at 120s
         reviewCooldownMinutes: 5,
         apiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1',
         rewardApiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/?test=1'
       });
+      setEnable50Percent(true); // Update state
     }
   };
 
@@ -42,6 +46,9 @@ const AdminGeneralConfig = () => {
       setLoading(true);
 
       await saveConfig('admin_general_config', values);
+      
+      // Lưu cấu hình bật/tắt mốc 50%
+      localStorage.setItem('app_enable_50_percent_milestone', values.enable50PercentMilestone ? 'true' : 'false');
       
       // Update the actual app configuration (these are runtime settings, keep in localStorage)
       localStorage.setItem('app_points_view_duration_50', values.pointsViewDuration50.toString());
@@ -81,17 +88,65 @@ const AdminGeneralConfig = () => {
 
       <Form form={form} layout="vertical">
         <Card title="⏱️ Cấu hình thời gian" style={{ marginBottom: 24 }}>
+          <Form.Item
+            name="enable50PercentMilestone"
+            valuePropName="checked"
+            style={{ marginBottom: 16 }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              padding: '12px 16px', 
+              background: '#f0f5ff',
+              borderRadius: 8,
+              border: '1px solid #d6e4ff'
+            }}>
+              <Switch 
+                checked={enable50Percent}
+                onChange={(checked) => {
+                  setEnable50Percent(checked);
+                  form.setFieldsValue({ enable50PercentMilestone: checked });
+                }}
+              />
+              <div style={{ marginLeft: 12, flex: 1 }}>
+                <strong style={{ fontSize: 14, color: '#1890ff' }}>
+                  {enable50Percent ? '✅ Bật mốc 50% điểm' : '❌ Tắt mốc 50% điểm'}
+                </strong>
+                <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                  {enable50Percent
+                    ? 'Hệ thống tính điểm theo 2 mốc: 50% và 100%' 
+                    : 'Hệ thống chỉ tính điểm theo 1 mốc: 100%'}
+                </div>
+              </div>
+            </div>
+          </Form.Item>
+
           <Alert
-            message="📊 Hệ thống tính điểm theo 2 mốc thời gian"
+            message={enable50Percent
+              ? "📊 Hệ thống tính điểm theo 2 mốc thời gian" 
+              : "📊 Hệ thống tính điểm theo 1 mốc thời gian"}
             description={
               <div>
-                <p style={{ marginBottom: 8 }}>
-                  • <strong>Mốc 50%:</strong> Xem đủ thời gian này → Nhận 50% điểm<br/>
-                  • <strong>Mốc 100%:</strong> Xem đủ thời gian này → Nhận 100% điểm
-                </p>
-                <p style={{ margin: 0, fontSize: 12, color: '#666' }}>
-                  Ví dụ: Tài liệu có 4 điểm, xem 60s được 2 điểm (50%), xem 120s được 4 điểm (100%)
-                </p>
+                {enable50Percent ? (
+                  <div>
+                    <p style={{ marginBottom: 8 }}>
+                      • <strong>Mốc 50%:</strong> Xem đủ thời gian này → Nhận 50% điểm<br/>
+                      • <strong>Mốc 100%:</strong> Xem đủ thời gian này → Nhận 100% điểm
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#666' }}>
+                      Ví dụ: Tài liệu có 4 điểm, xem 60s được 2 điểm (50%), xem 120s được 4 điểm (100%)
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ marginBottom: 8 }}>
+                      • <strong>Mốc 100%:</strong> Xem đủ thời gian này → Nhận 100% điểm
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#666' }}>
+                      Ví dụ: Tài liệu có 4 điểm, xem 120s được 4 điểm (100%). Không có thông báo mốc 50%, bấm Close sẽ POST API ngay.
+                    </p>
+                  </div>
+                )}
               </div>
             }
             type="info"
@@ -103,16 +158,23 @@ const AdminGeneralConfig = () => {
             label="Thời gian xem để nhận 50% điểm (giây)"
             name="pointsViewDuration50"
             rules={[
-              { required: true, message: 'Vui lòng nhập thời gian' },
+              { required: enable50Percent, message: 'Vui lòng nhập thời gian' },
               { type: 'number', min: 1, message: 'Phải lớn hơn 0' }
             ]}
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Người dùng xem {form.getFieldValue('pointsViewDuration50') || 60} giây → Nhận 50% điểm
+                {enable50Percent
+                  ? `Người dùng xem ${form.getFieldValue('pointsViewDuration50') || 60} giây → Nhận 50% điểm`
+                  : 'Tính năng mốc 50% đang tắt'}
               </Text>
             }
           >
-            <InputNumber min={1} style={{ width: '100%' }} placeholder="60" />
+            <InputNumber 
+              min={1} 
+              style={{ width: '100%' }} 
+              placeholder="60"
+              disabled={!enable50Percent}
+            />
           </Form.Item>
 
           <Form.Item
@@ -124,7 +186,7 @@ const AdminGeneralConfig = () => {
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   const duration50 = getFieldValue('pointsViewDuration50');
-                  if (!value || !duration50 || value >= duration50) {
+                  if (!enable50Percent || !value || !duration50 || value >= duration50) {
                     return Promise.resolve();
                   }
                   return Promise.reject(new Error('Mốc 100% phải >= mốc 50%'));

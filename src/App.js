@@ -51,8 +51,8 @@ import { googleSheetsService } from './services/googleSheetsService';
 // Import API Monitor for automatic error detection
 import apiMonitor from './services/apiMonitor';
 
-// 🔇 Disable all console logs for clean UI
-if (true) { // Set to true to DISABLE console, false to ENABLE - DISABLED FOR PRODUCTION
+// 🔇 Disable all console logs for production
+if (true) { // Set to true to DISABLE console, false to ENABLE
   console.log = () => {};
   console.error = () => {};
   console.warn = () => {};

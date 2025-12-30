@@ -66,6 +66,17 @@ export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_du
     ];
 
     console.log('[API] Posting viewing history:', payload);
+    console.log('[API] Endpoint:', apiEndpoint);
+    console.log('[API] Payload details:', {
+      ma_kh_dms: payload[0].ma_kh_dms,
+      phone: payload[0].phone,
+      document_id: payload[0].document_id,
+      watch_duration_seconds: payload[0].watch_duration_seconds,
+      time_rate: payload[0].time_rate,
+      base_point: payload[0].base_point,
+      effective_point: payload[0].effective_point,
+      inserted_at: payload[0].inserted_at
+    });
 
     // Make POST request (no Bearer token required for this endpoint)
     const response = await fetch(apiEndpoint, {
@@ -76,11 +87,26 @@ export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_du
       body: JSON.stringify(payload)
     });
 
+    console.log('[API] Response status:', response.status, response.statusText);
+
+    // Parse response JSON first (works for both success and error)
+    const result = await response.json();
+    console.log('[API] Response body:', result);
+
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Extract error message from response body
+      const errorMessage = result.error_message || result.message || `HTTP ${response.status}: ${response.statusText}`;
+      console.error('[API] Server returned error:', errorMessage);
+      
+      // Return error with message from server
+      return { 
+        success: false, 
+        reason: errorMessage,
+        data: result,
+        status: response.status
+      };
     }
 
-    const result = await response.json();
     console.log('[API] POST response:', result);
 
     // Check if backend returned success
@@ -101,6 +127,10 @@ export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_du
 
   } catch (error) {
     console.error('[API] POST failed:', error);
+    console.error('[API] Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
     return { success: false, reason: error.message };
   }
 };
