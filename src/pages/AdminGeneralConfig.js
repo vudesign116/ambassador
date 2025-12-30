@@ -30,8 +30,8 @@ const AdminGeneralConfig = () => {
         pointsViewDuration50: 60,    // 50% points at 60s
         pointsViewDuration100: 120,  // 100% points at 120s
         reviewCooldownMinutes: 5,
-        apiEndpoint: '',
-        rewardApiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/'
+        apiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1',
+        rewardApiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/?test=1'
       });
     }
   };

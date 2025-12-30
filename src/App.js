@@ -52,7 +52,7 @@ import { googleSheetsService } from './services/googleSheetsService';
 import apiMonitor from './services/apiMonitor';
 
 // 🔇 Disable all console logs for clean UI
-if (true) { // Set to false to enable console for debugging
+if (true) { // Set to true to DISABLE console, false to ENABLE - DISABLED FOR PRODUCTION
   console.log = () => {};
   console.error = () => {};
   console.warn = () => {};

@@ -42,6 +42,16 @@ class APIErrorBoundary extends Component {
   }
 
   componentDidMount() {
+    // 🔧 DISABLE MAINTENANCE MODE FOR NOW
+    const MAINTENANCE_DISABLED = true; // Set to false to enable maintenance mode
+    
+    if (MAINTENANCE_DISABLED) {
+      console.log('🚫 Maintenance mode is DISABLED');
+      localStorage.removeItem('maintenanceMode');
+      localStorage.removeItem('maintenanceError');
+      return;
+    }
+    
     // Lắng nghe sự kiện maintenance mode từ window
     window.addEventListener('maintenanceMode', this.handleMaintenanceMode);
     

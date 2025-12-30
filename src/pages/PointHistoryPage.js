@@ -195,14 +195,24 @@ const PointHistoryPage = () => {
         PointsManager.markAPIHistoryAsViewed(apiHistory);
       }
 
-      // Get combined history (API + Session)
-      const history = PointsManager.getCombinedHistory();
+      // ✅ Build history from lich_su_diem (API only - no localStorage session)
+      const history = [];
+      if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
+        data.lich_su_diem.forEach(item => {
+          history.push({
+            ...item,
+            type: item.type || 'video', // Default to video
+            document_name: item.document_name || 'Tài liệu'
+          });
+        });
+      }
 
       // Calculate video & document points
       let totalVideoPoints = 0;
       if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
         totalVideoPoints = data.lich_su_diem.reduce((sum, item) => {
-          return sum + (item.effective_point || item.point || 0);
+          const points = item.effective_point || item.point || 0;
+          return sum + points;
         }, 0);
       }
       setVideoPoints(totalVideoPoints);
@@ -210,10 +220,33 @@ const PointHistoryPage = () => {
       // TODO: Mini game points from API when available
       setMiniGamePoints(0);
 
-      // Add Streak bonus history from streak_last_7_days
+      // Add Streak bonus history from lich_su_diem_streak (preferred) or streak_last_7_days (fallback)
       const streakHistory = [];
       let totalStreakBonus = 0;
-      if (data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
+      
+      // ✅ Check if API returns lich_su_diem_streak array
+      if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
+        data.lich_su_diem_streak.forEach(item => {
+          const points = parseFloat(item.effective_point || item.point || item.bonus_point || 0);
+          // Use streak_date from API (format: "2025-12-28" without time)
+          const streakDate = item.streak_date || item.inserted_at || new Date().toISOString();
+          
+          if (points > 0) {
+            totalStreakBonus += points;
+            streakHistory.push({
+              document_id: 'streak_' + streakDate,
+              document_name: 'Điểm Duy trì (Streak)',
+              inserted_at: streakDate,  // Use date as-is from API
+              effective_point: points,
+              point: points,
+              type: 'streak',
+              streak_length: item.streak_length
+            });
+          }
+        });
+      }
+      // Fallback to old streak_last_7_days array
+      else if (data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
         data.streak_last_7_days.forEach(day => {
           if (day.bonus_point > 0) {
             totalStreakBonus += day.bonus_point;
@@ -231,10 +264,34 @@ const PointHistoryPage = () => {
       }
       setStreakBonus(totalStreakBonus);
 
-      // Add Referral history
+      // Add Referral history from lich_su_diem_referral array
       const referralHistory = [];
       let totalReferral = 0;
-      if (data.referral_point && data.referral_point > 0) {
+      
+      // ✅ Check if API returns lich_su_diem_referral array
+      if (data.lich_su_diem_referral && Array.isArray(data.lich_su_diem_referral)) {
+        console.log('[REFERRAL] Found lich_su_diem_referral:', data.lich_su_diem_referral);
+        data.lich_su_diem_referral.forEach(item => {
+          const referralDate = item.bonus_at || item.inserted_at || new Date().toISOString();
+          const points = parseFloat(item.bonus_point || item.effective_point || item.point || 0);
+          
+          console.log('[REFERRAL] Item:', item, 'Points:', points);
+          
+          referralHistory.push({
+            document_id: 'referral_' + (item.invitee_phone || 'unknown'),
+            document_name: 'Điểm Giới thiệu',
+            inserted_at: referralDate,
+            effective_point: points,
+            point: points,
+            type: 'referral'
+          });
+          
+          totalReferral += points;
+        });
+        console.log('[REFERRAL] Total:', totalReferral, 'History:', referralHistory);
+      } 
+      // Fallback to old single referral_point field
+      else if (data.referral_point && data.referral_point > 0) {
         totalReferral = data.referral_point;
         // Get referral date from referral_month_regis if available
         const referralDate = data.referral_month_regis || new Date().toISOString();

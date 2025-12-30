@@ -13,15 +13,16 @@
  */
 export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_duration_seconds = 0, time_rate = 1.0, base_point = 0, effective_point = 0) => {
   try {
-    // Get API endpoint from localStorage
-    let apiEndpoint = localStorage.getItem('app_sync_point_api_endpoint');
+    // Get API endpoint from localStorage with fallback
+    let apiEndpoint = localStorage.getItem('app_sync_point_api_endpoint') || 
+                      'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1';
     
     if (!apiEndpoint || apiEndpoint.trim() === '') {
-      console.log('[API] No API endpoint configured, skipping POST');
-      return { success: false, reason: 'no_endpoint' };
+      console.log('[API] No API endpoint configured, using default');
+      apiEndpoint = 'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1';
     }
 
-    // 🧪 TEST MODE: Add ?test=1 to bypass business logic (remove this line in production)
+    // 🧪 TEST MODE: Add ?test=1 to bypass business logic (if not already present)
     if (!apiEndpoint.includes('?test=1')) {
       apiEndpoint += '?test=1';
       console.log('[API] 🧪 TEST MODE: Using test=1 parameter');
