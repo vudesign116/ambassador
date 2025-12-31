@@ -73,6 +73,23 @@ export const saveConfig = async (configKey, configData) => {
  */
 export const loadConfig = async (configKey) => {
   try {
+    // ✅ ALWAYS load from Google Sheets for admin_general_config (no localStorage cache)
+    // This ensures all devices get the same config in real-time
+    if (configKey === 'admin_general_config') {
+      console.log(`🔍 Loading ${configKey} from Google Sheets (no cache)...`);
+      const sheetConfig = await googleSheetsService.loadAdminConfig(configKey);
+      
+      if (sheetConfig) {
+        console.log(`✅ Loaded from Google Sheets: ${configKey} (cross-device, no cache)`);
+        // ❌ DO NOT save to localStorage - always fetch fresh
+        return sheetConfig;
+      }
+      
+      console.log(`ℹ️ No config found for ${configKey} in Google Sheets`);
+      return null;
+    }
+    
+    // For other configs, use normal caching behavior
     // 1. Try loading from Google Sheets first (cross-device)
     console.log(`🔍 Loading ${configKey} from Google Sheets...`);
     const sheetConfig = await googleSheetsService.loadAdminConfig(configKey);
@@ -101,7 +118,13 @@ export const loadConfig = async (configKey) => {
   } catch (error) {
     console.error(`❌ Error loading config ${configKey}:`, error);
     
-    // Last resort: try localStorage
+    // For admin_general_config, DO NOT use localStorage fallback
+    if (configKey === 'admin_general_config') {
+      console.error(`❌ Failed to load ${configKey} from Google Sheets, no fallback`);
+      return null;
+    }
+    
+    // Last resort for other configs: try localStorage
     try {
       const localConfig = localStorage.getItem(configKey);
       if (localConfig) {
