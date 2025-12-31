@@ -7,6 +7,7 @@ import pdfFileIcon from '../images/pdf-file.png';
 import { postViewingHistory } from '../utils/apiHelper';
 import * as PointsManager from '../utils/pointsManager';
 import { googleSheetsService } from '../services/googleSheetsService';
+import { loadConfig } from '../utils/configSync';
 
 const { Text, Title } = Typography;
 
@@ -83,31 +84,32 @@ const DocumentListPage = () => {
   const [apiStatus, setApiStatus] = useState('idle'); // 'idle' | 'posting' | 'success' | 'error'
   const [apiErrorMessage, setApiErrorMessage] = useState('');
 
-  // Load config from admin
+  // Load config from Google Sheets (cross-device sync)
   useEffect(() => {
-    const loadConfig = () => {
-      const savedConfig = localStorage.getItem('admin_general_config');
-      if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        const duration50 = config.pointsViewDuration50 || 60;
-        const duration100 = config.pointsViewDuration100 || 120;
-        const enable50 = config.enable50PercentMilestone !== undefined ? config.enable50PercentMilestone : true;
-        console.log('[CONFIG] Loading admin config - 50%:', duration50, '100%:', duration100, 'Enable 50%:', enable50);
-        setMinViewingTime50(duration50);
-        setMinViewingTime100(duration100);
-        setEnable50PercentMilestone(enable50);
-      } else {
-        // Fallback to localStorage values if available
-        const duration50 = localStorage.getItem('app_points_view_duration_50');
-        const duration100 = localStorage.getItem('app_points_view_duration_100');
-        const enable50 = localStorage.getItem('app_enable_50_percent_milestone');
-        console.log('[CONFIG] Loading localStorage config - 50%:', duration50, '100%:', duration100, 'Enable 50%:', enable50);
-        if (duration50) setMinViewingTime50(parseInt(duration50));
-        if (duration100) setMinViewingTime100(parseInt(duration100));
-        if (enable50) setEnable50PercentMilestone(enable50 === 'true');
+    const loadGeneralConfig = async () => {
+      try {
+        console.log('[CONFIG] Loading admin_general_config from Google Sheets...');
+        const config = await loadConfig('admin_general_config');
+        
+        if (config) {
+          const duration50 = config.pointsViewDuration50 || 60;
+          const duration100 = config.pointsViewDuration100 || 120;
+          const enable50 = config.enable50PercentMilestone !== undefined ? config.enable50PercentMilestone : true;
+          
+          console.log('[CONFIG] ✅ Loaded from Google Sheets - 50%:', duration50, '100%:', duration100, 'Enable 50%:', enable50);
+          
+          setMinViewingTime50(duration50);
+          setMinViewingTime100(duration100);
+          setEnable50PercentMilestone(enable50);
+        } else {
+          console.log('[CONFIG] ⚠️ No config found, using defaults - 50%: 60s, 100%: 120s, Enable 50%: true');
+        }
+      } catch (error) {
+        console.error('[CONFIG] ❌ Error loading config:', error);
       }
     };
-    loadConfig();
+    
+    loadGeneralConfig();
   }, []);
 
   // Cleanup on unmount

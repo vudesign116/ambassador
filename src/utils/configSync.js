@@ -17,7 +17,8 @@ export const ADMIN_CONFIG_KEYS = [
   'admin_badges_config',
   'admin_notification_config',
   'admin_survey_config',
-  'admin_mini_games_config'
+  'admin_mini_games_config',
+  'admin_general_config'
 ];
 
 /**
@@ -47,7 +48,8 @@ export const saveConfig = async (configKey, configData) => {
       'admin_introduction_config': CONFIG_EVENTS.INTRODUCTION_UPDATED,
       'admin_scoring_rules_config': CONFIG_EVENTS.SCORING_RULES_UPDATED,
       'admin_badges_config': CONFIG_EVENTS.BADGES_UPDATED,
-      'admin_notification_config': CONFIG_EVENTS.NOTIFICATION_UPDATED
+      'admin_notification_config': CONFIG_EVENTS.NOTIFICATION_UPDATED,
+      'admin_general_config': CONFIG_EVENTS.GENERAL_UPDATED
     };
 
     if (eventMap[configKey]) {

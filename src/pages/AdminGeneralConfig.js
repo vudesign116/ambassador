@@ -32,9 +32,7 @@ const AdminGeneralConfig = () => {
         enable50PercentMilestone: true, // Mặc định bật mốc 50%
         pointsViewDuration50: 60,    // 50% points at 60s
         pointsViewDuration100: 120,  // 100% points at 120s
-        reviewCooldownMinutes: 5,
-        apiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1',
-        rewardApiEndpoint: 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/?test=1'
+        reviewCooldownMinutes: 5
       });
       setEnable50Percent(true); // Update state
     }
@@ -45,36 +43,13 @@ const AdminGeneralConfig = () => {
       const values = await form.validateFields();
       setLoading(true);
 
+      // Save to Google Sheets (cross-device sync)
       await saveConfig('admin_general_config', values);
-      
-      // Lưu cấu hình bật/tắt mốc 50%
-      localStorage.setItem('app_enable_50_percent_milestone', values.enable50PercentMilestone ? 'true' : 'false');
-      
-      // Update the actual app configuration (these are runtime settings, keep in localStorage)
-      localStorage.setItem('app_points_view_duration_50', values.pointsViewDuration50.toString());
-      localStorage.setItem('app_points_view_duration_100', values.pointsViewDuration100.toString());
-      localStorage.setItem('app_review_cooldown', (values.reviewCooldownMinutes * 60 * 1000).toString());
-      
-      // Backward compatibility - keep old key for apps that still use it
-      localStorage.setItem('app_points_view_duration', values.pointsViewDuration100.toString());
-      
-      // API endpoint chỉ dùng để POST lịch sử điểm lên server, không ảnh hưởng các API khác
-      if (values.apiEndpoint) {
-        localStorage.setItem('app_sync_point_api_endpoint', values.apiEndpoint);
-      } else {
-        localStorage.removeItem('app_sync_point_api_endpoint');
-      }
-      
-      // Reward API endpoint - POST data chọn quà
-      if (values.rewardApiEndpoint) {
-        localStorage.setItem('app_reward_api_endpoint', values.rewardApiEndpoint);
-      } else {
-        localStorage.removeItem('app_reward_api_endpoint');
-      }
       
       setLoading(false);
       message.success('✅ Đã lưu cấu hình! (Sync mọi thiết bị)');
     } catch (error) {
+      setLoading(false);
       message.error('Vui lòng kiểm tra lại các trường thông tin');
     }
   };
@@ -214,47 +189,6 @@ const AdminGeneralConfig = () => {
           >
             <InputNumber min={1} style={{ width: '100%' }} placeholder="5" />
           </Form.Item>
-        </Card>
-
-        <Card title="🔌 Cấu hình API đồng bộ dữ liệu" style={{ marginBottom: 24 }}>
-          <Form.Item
-            label="API Endpoint để POST lịch sử điểm lên server (tùy chọn)"
-            name="apiEndpoint"
-            extra={
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                VD: https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/
-              </Text>
-            }
-          >
-            <Input placeholder="https://api.example.com/sync-point-history" />
-          </Form.Item>
-
-          <Form.Item
-            label="API Endpoint để POST dữ liệu chọn quà"
-            name="rewardApiEndpoint"
-            rules={[{ required: true, message: 'Vui lòng nhập API endpoint' }]}
-            extra={
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                API để gửi dữ liệu khi user chọn quà hàng tháng/DGCC/CGSP
-              </Text>
-            }
-          >
-            <Input placeholder="https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/" />
-          </Form.Item>
-
-          <Alert
-            message="Lưu ý về API"
-            description={
-              <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                <li><strong>API lịch sử điểm:</strong> POST khi user xem tài liệu và tích điểm</li>
-                <li><strong>API chọn quà:</strong> POST khi user chọn quà với format: phone, value (monthly), value1 (DGCC), value2 (CGSP), inserted_at</li>
-                <li>Không ảnh hưởng đến các API khác (login, documents, get point history, etc.)</li>
-                <li>API cần hỗ trợ Bearer token authentication</li>
-              </ul>
-            }
-            type="info"
-            showIcon
-          />
         </Card>
       </Form>
 
