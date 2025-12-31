@@ -67,6 +67,7 @@ const DocumentListPage = () => {
   const [loadError, setLoadError] = useState(false);
   const [apiLoading, setApiLoading] = useState(true);
   const [hasPostedToAPI, setHasPostedToAPI] = useState(false);
+  const [shouldShow100ModalOnClose, setShouldShow100ModalOnClose] = useState(false); // NEW: Track if should show modal after close
   const hasPostedRef = React.useRef(false); // Use ref to track POST status
   const hasMarkedViewedRef = React.useRef(false); // Track if document marked as viewed
   const autoPostTimeoutRef = React.useRef(null); // Track auto POST timeout
@@ -345,14 +346,14 @@ const DocumentListPage = () => {
           triggerCelebration(50); // Show 50% modal
         }
         
-        // 🎊 Track 100% milestone - Auto POST API immediately
+        // 🎊 Track 100% milestone - Auto POST API immediately but DON'T show modal
         // ✅ Safety check: Only trigger if viewer is still open
         if (!hasReached100Percent && newTime >= minViewingTime100 && !hasShown100ModalRef.current && viewerOpenRef.current) {
           console.log('[100% MILESTONE] ✅ TRIGGERED! newTime:', newTime, 'hasReached100:', hasReached100Percent, 'hasShown100Modal:', hasShown100ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
           setHasReached100Percent(true);
           hasShown100ModalRef.current = true; // Mark as shown
           
-          // Trigger confetti animation
+          // Trigger confetti animation (visual feedback only, no modal interruption)
           createConfetti();
           
           // POST API IMMEDIATELY when reaching 100%
@@ -360,6 +361,8 @@ const DocumentListPage = () => {
             console.log('[Auto POST] Triggering auto POST immediately at 100% milestone');
             // ✅ Pass current viewingTime from newTime
             postToAPIAndClose(newTime);
+            // ✅ Set flag to show success modal AFTER user closes popup
+            setShouldShow100ModalOnClose(true);
           }
         }
         
@@ -581,35 +584,9 @@ const DocumentListPage = () => {
           localStorage.setItem('points_updated', 'true');
         }
         
-        // Show success modal with celebration
-        const effectivePoints = Math.floor(basePoints * timeRate);
-        const successModal = Modal.success({
-          title: '🎊 Hoàn thành & Đã ghi nhận điểm!',
-          content: (
-            <div>
-              <p style={{ fontSize: 18, marginBottom: 12, color: '#52c41a', fontWeight: 'bold' }}>
-                🏆 Tổng cộng: <span style={{ fontSize: 28 }}>{effectivePoints} điểm</span>
-              </p>
-              <p style={{ fontSize: 16, marginBottom: 8 }}>
-                ✅ Bạn đã xem đủ <strong>100%</strong> thời gian tài liệu
-              </p>
-              <p style={{ fontSize: 14, color: '#666' }}>
-                Điểm đã được lưu vào hệ thống thành công
-              </p>
-            </div>
-          ),
-          okText: 'Tuyệt vời!',
-          centered: true,
-          onOk: () => {
-            // Không đóng popup xem tài liệu, chỉ đóng thông báo
-            // User có thể tiếp tục xem tài liệu
-          }
-        });
-        
-        // Auto close modal sau 5s nếu user không bấm
-        setTimeout(() => {
-          successModal.destroy();
-        }, 5000);
+        // ✅ DON'T show success modal here - will show after user closes popup
+        // Success modal will be shown in performClose() if shouldShow100ModalOnClose is true
+        console.log('[POST API] Success! Points saved. Modal will show after user closes viewer.');
       } else {
         // API failed - Show error message from server
         console.error('[POST API] Failed:', result.reason, result);
@@ -660,6 +637,10 @@ const DocumentListPage = () => {
   const performClose = () => {
     // Points are already posted to server at 60s mark
     // No need to save to localStorage anymore
+    
+    // ✅ Check if we need to show 100% success modal after closing
+    const shouldShowModal = shouldShow100ModalOnClose;
+    const docToShow = currentDocumentRef.current || currentDocument;
 
     setViewerOpen(false);
     viewerOpenRef.current = false; // ✅ Clear ref
@@ -678,6 +659,7 @@ const DocumentListPage = () => {
     hasPostedRef.current = false; // Reset ref when closing viewer
     hasShown50ModalRef.current = false; // Reset 50% modal flag
     hasShown100ModalRef.current = false; // Reset 100% modal flag
+    setShouldShow100ModalOnClose(false); // Reset flag
     setLikeCount(0);
     setHasLiked(false);
     setApiStatus('idle'); // Reset API status
@@ -713,6 +695,40 @@ const DocumentListPage = () => {
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'instant' });
     }, 50);
+    
+    // ✅ Show 100% success modal AFTER popup is closed
+    if (shouldShowModal && docToShow) {
+      setTimeout(() => {
+        // Get base points from document
+        let basePoints = 4;
+        if (docToShow?.points) {
+          if (typeof docToShow.points === 'string') {
+            basePoints = parseInt(docToShow.points) || 4;
+          } else {
+            basePoints = docToShow.points;
+          }
+        }
+        
+        Modal.success({
+          title: '🎊 Hoàn thành & Đã ghi nhận điểm!',
+          content: (
+            <div>
+              <p style={{ fontSize: 18, marginBottom: 12, color: '#52c41a', fontWeight: 'bold' }}>
+                🏆 Tổng cộng: <span style={{ fontSize: 28 }}>{basePoints} điểm</span>
+              </p>
+              <p style={{ fontSize: 16, marginBottom: 8 }}>
+                ✅ Bạn đã xem đủ <strong>100%</strong> thời gian tài liệu
+              </p>
+              <p style={{ fontSize: 14, color: '#666' }}>
+                Điểm đã được lưu vào hệ thống thành công
+              </p>
+            </div>
+          ),
+          okText: 'Tuyệt vời!',
+          centered: true
+        });
+      }, 300); // Small delay to ensure viewer is fully closed
+    }
   };
 
   const getEmbedUrl = (url, type) => {
@@ -751,16 +767,27 @@ const DocumentListPage = () => {
   };
 
   const getPointsPercentage = () => {
-    if (viewingTime <= minViewingTime50) {
-      // 0 to 50% range
-      return Math.floor((viewingTime / minViewingTime50) * 50);
-    } else if (viewingTime <= minViewingTime100) {
-      // 50% to 100% range
-      const progressBeyond50 = viewingTime - minViewingTime50;
-      const rangeBeyond50 = minViewingTime100 - minViewingTime50;
-      return Math.floor(50 + (progressBeyond50 / rangeBeyond50) * 50);
+    if (enable50PercentMilestone) {
+      // TWO-TIER: 0 → 50% → 100%
+      if (viewingTime <= minViewingTime50) {
+        // 0 to 50% range
+        return Math.floor((viewingTime / minViewingTime50) * 50);
+      } else if (viewingTime <= minViewingTime100) {
+        // 50% to 100% range
+        const progressBeyond50 = viewingTime - minViewingTime50;
+        const rangeBeyond50 = minViewingTime100 - minViewingTime50;
+        return Math.floor(50 + (progressBeyond50 / rangeBeyond50) * 50);
+      } else {
+        return 100;
+      }
     } else {
-      return 100;
+      // SINGLE-TIER: 0 → 100% only
+      if (viewingTime >= minViewingTime100) {
+        return 100;
+      } else {
+        // Linear progression from 0 to 100%
+        return Math.floor((viewingTime / minViewingTime100) * 100);
+      }
     }
   };
 
