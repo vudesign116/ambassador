@@ -89,6 +89,8 @@ const DocumentListPage = () => {
     const loadGeneralConfig = async () => {
       try {
         console.log('[CONFIG] Loading admin_general_config from Google Sheets...');
+        
+        // Try Google Sheets first
         const config = await loadConfig('admin_general_config');
         
         if (config) {
@@ -97,12 +99,24 @@ const DocumentListPage = () => {
           const enable50 = config.enable50PercentMilestone !== undefined ? config.enable50PercentMilestone : true;
           
           console.log('[CONFIG] ✅ Loaded from Google Sheets - 50%:', duration50, '100%:', duration100, 'Enable 50%:', enable50);
+          console.log('[CONFIG] Raw config object:', config);
           
           setMinViewingTime50(duration50);
           setMinViewingTime100(duration100);
           setEnable50PercentMilestone(enable50);
         } else {
-          console.log('[CONFIG] ⚠️ No config found, using defaults - 50%: 60s, 100%: 120s, Enable 50%: true');
+          console.log('[CONFIG] ⚠️ No config found from Google Sheets, using defaults - 50%: 60s, 100%: 120s, Enable 50%: true');
+          console.log('[CONFIG] Fallback: Check localStorage directly...');
+          
+          // Fallback: Check localStorage directly
+          const localConfig = localStorage.getItem('admin_general_config');
+          if (localConfig) {
+            console.log('[CONFIG] Found in localStorage:', localConfig);
+            const parsed = JSON.parse(localConfig);
+            setMinViewingTime50(parsed.pointsViewDuration50 || 60);
+            setMinViewingTime100(parsed.pointsViewDuration100 || 120);
+            setEnable50PercentMilestone(parsed.enable50PercentMilestone !== undefined ? parsed.enable50PercentMilestone : true);
+          }
         }
       } catch (error) {
         console.error('[CONFIG] ❌ Error loading config:', error);
@@ -317,7 +331,7 @@ const DocumentListPage = () => {
         
         // Debug log every 10 seconds
         if (newTime % 10 === 0) {
-          console.log('[TIMER] Time:', newTime, 's | 50%:', minViewingTime50, 's | 100%:', minViewingTime100, 's | viewerOpen:', viewerOpenRef.current);
+          console.log('[TIMER] Time:', newTime, 's | 50%:', minViewingTime50, 's | 100%:', minViewingTime100, 's | Enable50%:', enable50PercentMilestone, '| viewerOpen:', viewerOpenRef.current);
         }
         
         // ✅ Calculate points based on milestone config
@@ -342,10 +356,12 @@ const DocumentListPage = () => {
         // 🎉 Track 50% milestone - Show modal popup ONCE (only if enabled)
         // ✅ Safety check: Only show modal if viewer is still open AND 50% milestone is enabled
         if (enable50PercentMilestone && !hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpenRef.current) {
-          console.log('[50% MILESTONE] ✅ TRIGGERED! newTime:', newTime, 'hasReached50:', hasReached50Percent, 'hasShown50Modal:', hasShown50ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
+          console.log('[50% MILESTONE] ✅ TRIGGERED! enable50PercentMilestone:', enable50PercentMilestone, 'newTime:', newTime, 'minViewingTime50:', minViewingTime50, 'hasReached50:', hasReached50Percent, 'hasShown50Modal:', hasShown50ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
           setHasReached50Percent(true);
           hasShown50ModalRef.current = true; // Mark as shown
           triggerCelebration(50); // Show 50% modal
+        } else if (!enable50PercentMilestone && newTime >= minViewingTime50 && newTime < minViewingTime50 + 1) {
+          console.log('[50% MILESTONE] ⏭️ SKIPPED! enable50PercentMilestone=false, single-tier mode active');
         }
         
         // 🎊 Track 100% milestone - Auto POST API immediately but DON'T show modal
