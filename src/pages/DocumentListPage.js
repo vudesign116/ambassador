@@ -76,6 +76,7 @@ const DocumentListPage = () => {
   const hasShown100ModalRef = React.useRef(false); // Track if 100% modal shown
   const currentDocumentRef = React.useRef(null); // Track current document (avoid stale closure)
   const viewerOpenRef = React.useRef(false); // Track viewer open state (avoid stale closure)
+  const enable50PercentMilestoneRef = React.useRef(true); // Track enable50% config (avoid stale closure)
   const [likeCount, setLikeCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [minViewingTime50, setMinViewingTime50] = useState(60); // Default 60s for 50%
@@ -104,6 +105,9 @@ const DocumentListPage = () => {
           setMinViewingTime50(duration50);
           setMinViewingTime100(duration100);
           setEnable50PercentMilestone(enable50);
+          
+          // ✅ UPDATE REF to avoid stale closure in setInterval
+          enable50PercentMilestoneRef.current = enable50;
         } else {
           console.log('[CONFIG] ⚠️ No config found from Google Sheets, using defaults - 50%: 60s, 100%: 120s, Enable 50%: true');
           console.log('[CONFIG] Fallback: Check localStorage directly...');
@@ -113,9 +117,13 @@ const DocumentListPage = () => {
           if (localConfig) {
             console.log('[CONFIG] Found in localStorage:', localConfig);
             const parsed = JSON.parse(localConfig);
+            const enable50Local = parsed.enable50PercentMilestone !== undefined ? parsed.enable50PercentMilestone : true;
             setMinViewingTime50(parsed.pointsViewDuration50 || 60);
             setMinViewingTime100(parsed.pointsViewDuration100 || 120);
-            setEnable50PercentMilestone(parsed.enable50PercentMilestone !== undefined ? parsed.enable50PercentMilestone : true);
+            setEnable50PercentMilestone(enable50Local);
+            
+            // ✅ UPDATE REF to avoid stale closure
+            enable50PercentMilestoneRef.current = enable50Local;
           }
         }
       } catch (error) {
@@ -355,12 +363,13 @@ const DocumentListPage = () => {
         
         // 🎉 Track 50% milestone - Show modal popup ONCE (only if enabled)
         // ✅ Safety check: Only show modal if viewer is still open AND 50% milestone is enabled
-        if (enable50PercentMilestone && !hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpenRef.current) {
-          console.log('[50% MILESTONE] ✅ TRIGGERED! enable50PercentMilestone:', enable50PercentMilestone, 'newTime:', newTime, 'minViewingTime50:', minViewingTime50, 'hasReached50:', hasReached50Percent, 'hasShown50Modal:', hasShown50ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
+        // ✅ Use REF to avoid stale closure issue
+        if (enable50PercentMilestoneRef.current && !hasReached50Percent && newTime >= minViewingTime50 && !hasShown50ModalRef.current && viewerOpenRef.current) {
+          console.log('[50% MILESTONE] ✅ TRIGGERED! enable50PercentMilestone:', enable50PercentMilestoneRef.current, 'newTime:', newTime, 'minViewingTime50:', minViewingTime50, 'hasReached50:', hasReached50Percent, 'hasShown50Modal:', hasShown50ModalRef.current, 'viewerOpen:', viewerOpenRef.current);
           setHasReached50Percent(true);
           hasShown50ModalRef.current = true; // Mark as shown
           triggerCelebration(50); // Show 50% modal
-        } else if (!enable50PercentMilestone && newTime >= minViewingTime50 && newTime < minViewingTime50 + 1) {
+        } else if (!enable50PercentMilestoneRef.current && newTime >= minViewingTime50 && newTime < minViewingTime50 + 1) {
           console.log('[50% MILESTONE] ⏭️ SKIPPED! enable50PercentMilestone=false, single-tier mode active');
         }
         
@@ -479,7 +488,7 @@ const DocumentListPage = () => {
       postToAPIAndClose();
     } 
     // Nếu bật mốc 50% -> đã đạt 50%-99% (có điểm) nhưng chưa POST, POST API với điểm hiện tại
-    else if (enable50PercentMilestone && hasEarnedPoints && !hasPostedRef.current && viewingTime >= minViewingTime50) {
+    else if (enable50PercentMilestoneRef.current && hasEarnedPoints && !hasPostedRef.current && viewingTime >= minViewingTime50) {
       postToAPIAndClose();
     }
     // Nếu tắt mốc 50% -> KHÔNG POST API nếu chưa đủ 100%
@@ -520,14 +529,14 @@ const DocumentListPage = () => {
     let timeRate = 0;
     if (currentViewingTime >= minViewingTime100) {
       timeRate = 1.0;  // 100%
-    } else if (enable50PercentMilestone && currentViewingTime >= minViewingTime50) {
+    } else if (enable50PercentMilestoneRef.current && currentViewingTime >= minViewingTime50) {
       timeRate = 0.5;  // 50% (only if enabled)
     } else {
       // Không đủ thời gian → 0 điểm
       timeRate = 0;
     }
     
-    console.log('[POST API] time_rate:', timeRate, '(viewingTime:', currentViewingTime, 's, enable50%:', enable50PercentMilestone, 'min100:', minViewingTime100, 'min50:', minViewingTime50, ')');
+    console.log('[POST API] time_rate:', timeRate, '(viewingTime:', currentViewingTime, 's, enable50%:', enable50PercentMilestoneRef.current, 'min100:', minViewingTime100, 'min50:', minViewingTime50, ')');
     
     // ❌ Nếu time_rate = 0 (chưa đủ thời gian) → không POST API, thoát luôn
     if (timeRate === 0) {
@@ -605,6 +614,12 @@ const DocumentListPage = () => {
         // ✅ DON'T show success modal here - will show after user closes popup
         // Success modal will be shown in performClose() if shouldShow100ModalOnClose is true
         console.log('[POST API] Success! Points saved. Modal will show after user closes viewer.');
+        
+        // ✅ SET FLAG to show modal after user closes (only if called from auto POST at 100%)
+        if (actualViewingTime !== null && actualViewingTime >= minViewingTime100) {
+          setShouldShow100ModalOnClose(true);
+          console.log('[POST API] Set shouldShow100ModalOnClose = true');
+        }
       } else {
         // API failed - Show error message from server
         console.error('[POST API] Failed:', result.reason, result);
@@ -653,12 +668,17 @@ const DocumentListPage = () => {
   };
 
   const performClose = () => {
+    console.log('[PERFORM CLOSE] === START ===');
+    console.log('[PERFORM CLOSE] Stack trace:', new Error().stack);
+    
     // Points are already posted to server at 60s mark
     // No need to save to localStorage anymore
     
     // ✅ Check if we need to show 100% success modal after closing
     const shouldShowModal = shouldShow100ModalOnClose;
     const docToShow = currentDocumentRef.current || currentDocument;
+    
+    console.log('[PERFORM CLOSE] shouldShowModal:', shouldShowModal, 'docToShow:', docToShow?.name, 'hasReached100:', hasReached100Percent);
 
     setViewerOpen(false);
     viewerOpenRef.current = false; // ✅ Clear ref
@@ -785,7 +805,7 @@ const DocumentListPage = () => {
   };
 
   const getPointsPercentage = () => {
-    if (enable50PercentMilestone) {
+    if (enable50PercentMilestoneRef.current) {
       // TWO-TIER: 0 → 50% → 100%
       if (viewingTime <= minViewingTime50) {
         // 0 to 50% range
