@@ -204,7 +204,7 @@ const DashboardPage = () => {
             totalReferralPoints = data.referral_point;
           }
           
-          // Try to calculate monthly referral from history
+          // ✅ Calculate monthly referral from history (ONLY current month, no fallback)
           if (data.lich_su_diem_referral && Array.isArray(data.lich_su_diem_referral)) {
             data.lich_su_diem_referral.forEach(item => {
               console.log('[DASHBOARD] Referral item check:', {
@@ -217,17 +217,8 @@ const DashboardPage = () => {
               }
             });
             console.log('[DASHBOARD] Monthly referral from history:', monthlyReferralPoints);
-            
-            // If no monthly data found, use total as fallback
-            if (monthlyReferralPoints === 0 && totalReferralPoints > 0) {
-              console.log('[DASHBOARD] No monthly referral data, using total:', totalReferralPoints);
-              monthlyReferralPoints = totalReferralPoints;
-            }
-          } else {
-            // Fallback: if no history, use total referral point as monthly (assuming all in current month)
-            monthlyReferralPoints = totalReferralPoints;
-            console.log('[DASHBOARD] Using total referral as monthly (no history):', monthlyReferralPoints);
           }
+          // ❌ REMOVED fallback: If no data this month → 0đ (not total)
           setReferralPoints(monthlyReferralPoints);
           
           // Add streak bonus points (monthly only for display)
@@ -249,7 +240,7 @@ const DashboardPage = () => {
             setStreakData(data.streak_last_7_days);
           }
           
-          // Try to calculate monthly streak from history
+          // ✅ Calculate monthly streak from history (ONLY current month, no fallback)
           if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
             data.lich_su_diem_streak.forEach(item => {
               console.log('[DASHBOARD] Streak item check:', {
@@ -262,24 +253,25 @@ const DashboardPage = () => {
               }
             });
             console.log('[DASHBOARD] Monthly streak from history:', monthlyStreakBonus);
-            
-            // If no monthly data found, use total from 7 days as fallback
-            if (monthlyStreakBonus === 0 && totalStreakBonus > 0) {
-              console.log('[DASHBOARD] No monthly streak data, using 7 days total:', totalStreakBonus);
-              monthlyStreakBonus = totalStreakBonus;
-            }
-          } else {
-            // Fallback: if no history, use total streak as monthly
-            monthlyStreakBonus = totalStreakBonus;
-            console.log('[DASHBOARD] Using total streak as monthly (no history):', monthlyStreakBonus);
           }
+          // ❌ REMOVED fallback: If no data this month → 0đ (not total from 7 days)
           setStreakPoints(monthlyStreakBonus);
           
           // Mini game points (TODO: from API when available)
-          setMiniGamePoints(0);
+          const monthlyMiniGamePoints = 0;
+          setMiniGamePoints(monthlyMiniGamePoints);
           
-          // Set userScore for badge (total points - unchanged)
-          setUserScore(totalPoints + totalReferralPoints + totalStreakBonus);
+          // ✅ Set userScore for radar chart = MONTHLY total (all types of points this month)
+          const monthlyTotalPoints = monthlyVideoPoints + monthlyReferralPoints + monthlyStreakBonus + monthlyMiniGamePoints;
+          setUserScore(monthlyTotalPoints);
+          
+          console.log('[DASHBOARD] Monthly points breakdown:', {
+            video: monthlyVideoPoints,
+            referral: monthlyReferralPoints,
+            streak: monthlyStreakBonus,
+            miniGame: monthlyMiniGamePoints,
+            total: monthlyTotalPoints
+          });
 
           // Calculate points by category from contentlist and lich_su_diem
           if (data) {
