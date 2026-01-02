@@ -10,11 +10,10 @@ class RewardApiService {
   }
 
   /**
-   * Get API endpoint - fixed to test endpoint
+   * Get API endpoint - production
    */
   getApiEndpoint() {
-    // Always use test endpoint with ?test=1
-    return 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/?test=1';
+    return 'https://bi.meraplion.com/local/post_data/insert_nvbc_reward_item/?test=0';
   }
 
   /**
@@ -175,9 +174,9 @@ class RewardApiService {
    * @returns {Promise<Object>} Reward status data
    */
   async getRewardStatus(phoneNumber) {
-    // ✅ API endpoint (NO auth required - public endpoint)
+    // ✅ Production API endpoint (NO auth required - public endpoint)
     const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local';
-    const endpoint = `${apiBaseUrl}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
+    const endpoint = `${apiBaseUrl}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=0`;
 
     try {
       console.log('🔍 GET Reward Status from API:', endpoint);

@@ -13,19 +13,13 @@
  */
 export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_duration_seconds = 0, time_rate = 1.0, base_point = 0, effective_point = 0) => {
   try {
-    // Get API endpoint from localStorage with fallback
+    // ✅ Production API endpoint with test=0
     let apiEndpoint = localStorage.getItem('app_sync_point_api_endpoint') || 
-                      'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1';
+                      'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=0';
     
     if (!apiEndpoint || apiEndpoint.trim() === '') {
       console.log('[API] No API endpoint configured, using default');
-      apiEndpoint = 'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=1';
-    }
-
-    // 🧪 TEST MODE: Add ?test=1 to bypass business logic (if not already present)
-    if (!apiEndpoint.includes('?test=1')) {
-      apiEndpoint += '?test=1';
-      console.log('[API] 🧪 TEST MODE: Using test=1 parameter');
+      apiEndpoint = 'https://bi.meraplion.com/local/post_data/insert_nvbc_track_view/?test=0';
     }
 
     // Clean and validate required data (remove whitespace)
@@ -174,7 +168,7 @@ export const getUserInfo = async (phone) => {
       return { success: false, reason: 'missing_phone' };
     }
 
-    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_login/?test=1&phone=${cleanPhone}`;
+    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_login/?phone=${cleanPhone}&test=0`;
     console.log('[API] Getting user info via login:', cleanPhone);
 
     const response = await fetch(apiUrl, {
@@ -235,7 +229,7 @@ export const getUserPoints = async (phone) => {
       return { success: false, reason: 'missing_phone' };
     }
 
-    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_point/?phone=${encodeURIComponent(cleanPhone)}&test=1`;
+    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_point/?phone=${encodeURIComponent(cleanPhone)}&test=0`;
     console.log('[API] Getting user points:', apiUrl);
 
     const response = await fetch(apiUrl, {
@@ -295,7 +289,7 @@ export const submitReferral = async (inviteePhone, referralPhone) => {
     const utc7Time = new Date(now.getTime() + (7 * 60 * 60 * 1000));
     const insertedAt = utc7Time.toISOString().slice(0, -1); // Remove 'Z' at end
 
-    const apiUrl = 'https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=1';
+    const apiUrl = 'https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=0';
     const payload = [{
       invitee_phone: cleanInviteePhone,
       referral_phone: cleanReferralPhone,

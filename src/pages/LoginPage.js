@@ -143,7 +143,7 @@ const LoginPage = () => {
       
       let loginResponse;
       try {
-        loginResponse = await fetch(`${API_BASE_URL}/get_data/get_nvbc_login/?test=1&phone=${phoneNumber.trim()}`, {
+        loginResponse = await fetch(`${API_BASE_URL}/get_data/get_nvbc_login/?phone=${phoneNumber.trim()}&test=0`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -224,7 +224,7 @@ const LoginPage = () => {
       });
 
       // ✅ STEP 2: Call /get_data/get_nvbc_point/ to get reward status
-      const rewardResponse = await fetch(`${API_BASE_URL}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`, {
+      const rewardResponse = await fetch(`${API_BASE_URL}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=0`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'

@@ -132,8 +132,8 @@ const DashboardPage = () => {
         // Clear the update flag if it exists
         localStorage.removeItem('points_updated');
 
-        // ✅ Use new API endpoint (no Authorization needed)
-        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
+        // ✅ Use production API endpoint with test=0
+        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=0`;
         const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
