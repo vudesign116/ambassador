@@ -358,7 +358,7 @@ const DashboardPage = () => {
               });
             }
 
-            // Calculate Referral Points from API - monthly only
+            // ✅ Calculate Referral Points - ONLY current month (no fallback)
             if (data.lich_su_diem_referral && Array.isArray(data.lich_su_diem_referral)) {
               let monthlyReferral = 0;
               data.lich_su_diem_referral.forEach(item => {
@@ -367,17 +367,10 @@ const DashboardPage = () => {
                 }
               });
               categoryPoints['Điểm Giới thiệu'] = monthlyReferral;
-              
-              // Fallback if no monthly data
-              if (monthlyReferral === 0 && data && typeof data.referral_point === 'number') {
-                categoryPoints['Điểm Giới thiệu'] = data.referral_point;
-              }
-            } else if (data && typeof data.referral_point === 'number') {
-              // Fallback: use total referral point if no history
-              categoryPoints['Điểm Giới thiệu'] = data.referral_point;
             }
+            // ❌ REMOVED fallback: If no data this month → 0đ (not total)
 
-            // Calculate Streak Points - monthly only
+            // ✅ Calculate Streak Points - ONLY current month (no fallback)
             if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
               let monthlyStreak = 0;
               data.lich_su_diem_streak.forEach(item => {
@@ -386,17 +379,8 @@ const DashboardPage = () => {
                 }
               });
               categoryPoints['Điểm Duy trì'] = monthlyStreak;
-              
-              // Fallback if no monthly data
-              if (monthlyStreak === 0 && data && data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
-                let totalStreak = data.streak_last_7_days.reduce((sum, day) => sum + (day.bonus_point || 0), 0);
-                categoryPoints['Điểm Duy trì'] = totalStreak;
-              }
-            } else if (data && data.streak_last_7_days && Array.isArray(data.streak_last_7_days)) {
-              // Fallback: use streak_last_7_days total if no history
-              let totalStreak = data.streak_last_7_days.reduce((sum, day) => sum + (day.bonus_point || 0), 0);
-              categoryPoints['Điểm Duy trì'] = totalStreak;
             }
+            // ❌ REMOVED fallback: If no data this month → 0đ (not 7 days total)
 
             // Also count points from session (earned points)
             const earnedPoints = PointsManager.getEarnedPoints();
