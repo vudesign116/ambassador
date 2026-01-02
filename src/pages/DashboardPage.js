@@ -967,14 +967,15 @@ const DashboardPage = () => {
                 
                 {/* Streak summary */}
                 {(() => {
-                  // Calculate current streak (consecutive days with has_view = true)
-                  // If today (last day) has no view, use the streak_length from the last day that had a view
+                  // ✅ Calculate current streak (consecutive days with has_view = true)
+                  // IMPORTANT: Streak is ONLY counted if today has a view
+                  // If today has NO view → streak is BROKEN → currentStreak = 0
                   let currentStreak = 0;
                   
-                  // Check if the most recent day has a view
+                  // Check if the most recent day (today) has a view
                   const lastDay = streakData[streakData.length - 1];
                   if (lastDay && lastDay.has_view) {
-                    // If today has view, count from the end
+                    // ✅ If today has view, count consecutive days from the end
                     for (let i = streakData.length - 1; i >= 0; i--) {
                       if (streakData[i].has_view) {
                         currentStreak++;
@@ -983,24 +984,29 @@ const DashboardPage = () => {
                       }
                     }
                   } else {
-                    // If today has no view, find the last day with view and use its streak_length
-                    for (let i = streakData.length - 2; i >= 0; i--) {
-                      if (streakData[i].has_view) {
-                        currentStreak = streakData[i].streak_length;
-                        break;
-                      }
-                    }
+                    // ❌ If today has NO view → streak is BROKEN → set to 0
+                    // Do NOT use previous day's streak_length - that would be misleading
+                    currentStreak = 0;
                   }
                   
-                  // Calculate next milestone suggestion
+                  // ✅ Calculate next milestone suggestion
+                  // Only show if currentStreak > 0 (user is still in an active streak)
                   let suggestion = '';
-                  if (currentStreak === 2) {
-                    suggestion = '💪 Còn 1 ngày nữa → +30đ!';
-                  } else if (currentStreak === 5) {
-                    suggestion = '💪 Còn 2 ngày nữa → +30đ!';
+                  if (currentStreak > 0 && currentStreak < 3) {
+                    // Streak 1-2: Approaching first milestone (3 days = +30đ)
+                    const daysToGo = 3 - currentStreak;
+                    suggestion = `💪 Còn ${daysToGo} ngày nữa → +30đ!`;
+                  } else if (currentStreak >= 3 && currentStreak < 6) {
+                    // Streak 3-5: Approaching second milestone (6 days = +60đ total)
+                    const daysToGo = 6 - currentStreak;
+                    suggestion = `💪 Còn ${daysToGo} ngày nữa → +30đ (tổng 60đ)!`;
                   } else if (currentStreak === 6) {
+                    // Streak 6: One more day to reach 7 days = +100đ total
                     suggestion = '💪 Còn 1 ngày nữa → +40đ (tổng 100đ)!';
                   }
+                  // If currentStreak = 0 → no suggestion (streak broken)
+                  // If currentStreak >= 7 → no suggestion (already maxed out)
+                  
                   
                   return (
                     <>
