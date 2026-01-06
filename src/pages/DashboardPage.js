@@ -244,11 +244,12 @@ const DashboardPage = () => {
           if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
             data.lich_su_diem_streak.forEach(item => {
               console.log('[DASHBOARD] Streak item check:', {
-                inserted_at: item.inserted_at,
+                streak_date: item.streak_date,
                 bonus_point: item.bonus_point,
-                isCurrentMonth: isCurrentMonth(item.inserted_at)
+                streak_length: item.streak_length,
+                isCurrentMonth: isCurrentMonth(item.streak_date)
               });
-              if (isCurrentMonth(item.inserted_at)) {
+              if (isCurrentMonth(item.streak_date)) {
                 monthlyStreakBonus += (item.bonus_point || 0);
               }
             });
@@ -358,29 +359,13 @@ const DashboardPage = () => {
               });
             }
 
-            // ✅ Calculate Referral Points - ONLY current month (no fallback)
-            if (data.lich_su_diem_referral && Array.isArray(data.lich_su_diem_referral)) {
-              let monthlyReferral = 0;
-              data.lich_su_diem_referral.forEach(item => {
-                if (isCurrentMonth(item.inserted_at)) {
-                  monthlyReferral += (item.point || 0);
-                }
-              });
-              categoryPoints['Điểm Giới thiệu'] = monthlyReferral;
-            }
-            // ❌ REMOVED fallback: If no data this month → 0đ (not total)
+            // ✅ Use pre-calculated Referral Points (from monthlyReferralPoints variable)
+            categoryPoints['Điểm Giới thiệu'] = monthlyReferralPoints;
+            console.log('[CATEGORY STATS] Using monthlyReferralPoints for radar:', monthlyReferralPoints);
 
-            // ✅ Calculate Streak Points - ONLY current month (no fallback)
-            if (data.lich_su_diem_streak && Array.isArray(data.lich_su_diem_streak)) {
-              let monthlyStreak = 0;
-              data.lich_su_diem_streak.forEach(item => {
-                if (isCurrentMonth(item.inserted_at)) {
-                  monthlyStreak += (item.bonus_point || 0);
-                }
-              });
-              categoryPoints['Điểm Duy trì'] = monthlyStreak;
-            }
-            // ❌ REMOVED fallback: If no data this month → 0đ (not 7 days total)
+            // ✅ Use pre-calculated Streak Points (from monthlyStreakBonus variable)
+            categoryPoints['Điểm Duy trì'] = monthlyStreakBonus;
+            console.log('[CATEGORY STATS] Using monthlyStreakBonus for radar:', monthlyStreakBonus);
 
             // Also count points from session (earned points)
             const earnedPoints = PointsManager.getEarnedPoints();
