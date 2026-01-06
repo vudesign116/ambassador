@@ -209,11 +209,14 @@ const DashboardPage = () => {
             data.lich_su_diem_referral.forEach(item => {
               console.log('[DASHBOARD] Referral item check:', {
                 inserted_at: item.inserted_at,
+                bonus_point: item.bonus_point,
                 point: item.point,
-                isCurrentMonth: isCurrentMonth(item.inserted_at)
+                month_field: item.month,
+                isCurrentMonth: isCurrentMonth(item.inserted_at) || isCurrentMonth(item.month) || isCurrentMonth(item.bonus_at)
               });
-              if (isCurrentMonth(item.inserted_at)) {
-                monthlyReferralPoints += (item.point || 0);
+              if (isCurrentMonth(item.inserted_at) || isCurrentMonth(item.month) || isCurrentMonth(item.bonus_at)) {
+                // Use bonus_point if available, fallback to point
+                monthlyReferralPoints += (item.bonus_point || item.point || 0);
               }
             });
             console.log('[DASHBOARD] Monthly referral from history:', monthlyReferralPoints);
