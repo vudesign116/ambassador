@@ -188,7 +188,7 @@ const DocumentListPage = () => {
           return;
         }
 
-        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=1`;
+        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=0`;
         console.log('[DOCUMENTS] Fetching from API:', apiUrl);
         
         const response = await fetch(apiUrl, {

@@ -57,13 +57,18 @@ class RewardApiService {
       const token = this.getAuthToken();
       
       // Prepare payload - API expects ARRAY of objects (jsonb_populate_recordset)
+      // Vietnam timezone (UTC+7) - format: YYYY-MM-DDTHH:mm:ss.SSS (no Z)
+      const now = new Date();
+      now.setHours(now.getHours() + 7); // Add 7 hours for Vietnam
+      const vietnamTime = now.toISOString().slice(0, -1); // Remove 'Z'
+      
       const payloadItem = {
         phone: phone,
         value: rewardData.monthlyReward || '',     // Tên quà monthly
         value1: rewardData.dgccReward || '',       // Tên quà DGCC
         value2: rewardData.cgspReward || '',       // Tên quà CGSP
         reward_event: rewardData.rewardEvent || '', // e.g., "12_25_th_monthly_reward"
-        inserted_at: new Date().toISOString()      // ISO timestamp
+        inserted_at: vietnamTime                   // Vietnam time (GMT+7, no Z)
       };
       
       // Wrap in array as API expects "array of objects"
