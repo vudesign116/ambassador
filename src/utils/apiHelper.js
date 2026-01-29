@@ -32,17 +32,16 @@ export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_du
       return { success: false, reason: 'missing_data' };
     }
 
-    // Create UTC+7 timestamp in format: "2025-12-16 10:30:00" (no T, no Z)
+    // Create GMT+7 (Vietnam) timestamp in format: "2025-12-16 10:30:00" (no T, no Z)
     const now = new Date();
-    // Add 7 hours for UTC+7
-    const utc7Time = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    now.setHours(now.getHours() + 7); // Add 7 hours for Vietnam timezone
     // Format as YYYY-MM-DD HH:MM:SS
-    const year = utc7Time.getUTCFullYear();
-    const month = String(utc7Time.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(utc7Time.getUTCDate()).padStart(2, '0');
-    const hours = String(utc7Time.getUTCHours()).padStart(2, '0');
-    const minutes = String(utc7Time.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(utc7Time.getUTCSeconds()).padStart(2, '0');
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
     const inserted_at = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
     // Prepare data as array with single record (use cleaned data)
@@ -284,10 +283,10 @@ export const submitReferral = async (inviteePhone, referralPhone) => {
       return { success: false, reason: 'missing_phone' };
     }
 
-    // Create UTC+7 timestamp in ISO format: "2025-12-10T09:30:123"
+    // Create GMT+7 (Vietnam) timestamp in format: "2025-12-10T09:30:123"
     const now = new Date();
-    const utc7Time = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-    const insertedAt = utc7Time.toISOString().slice(0, -1); // Remove 'Z' at end
+    now.setHours(now.getHours() + 7); // Add 7 hours for Vietnam timezone
+    const insertedAt = now.toISOString().slice(0, -1); // Remove 'Z' at end
 
     const apiUrl = 'https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=0';
     const payload = [{
