@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Input, List, Card, Tag, Button, Modal, Progress, Typography, Space, Spin, Empty } from 'antd';
+import { Input, List, Card, Tag, Button, Modal, Progress, Typography, Space, Spin, Empty, message } from 'antd';
 import { SearchOutlined, ArrowLeftOutlined, FileTextOutlined, VideoCameraOutlined, CloseOutlined, TrophyOutlined, ClockCircleOutlined, LikeFilled, LoadingOutlined } from '@ant-design/icons';
 import videoFileIcon from '../images/video-file.png';
 import pdfFileIcon from '../images/pdf-file.png';
 import { postViewingHistory } from '../utils/apiHelper';
 import * as PointsManager from '../utils/pointsManager';
 import { googleSheetsService } from '../services/googleSheetsService';
-import { loadConfig } from '../utils/configSync';
 
 const { Text, Title } = Typography;
 
@@ -76,63 +75,22 @@ const DocumentListPage = () => {
   const hasShown100ModalRef = React.useRef(false); // Track if 100% modal shown
   const currentDocumentRef = React.useRef(null); // Track current document (avoid stale closure)
   const viewerOpenRef = React.useRef(false); // Track viewer open state (avoid stale closure)
-  const enable50PercentMilestoneRef = React.useRef(true); // Track enable50% config (avoid stale closure)
+  const enable50PercentMilestoneRef = React.useRef(false); // HARDCODED: false (disabled)
   const [likeCount, setLikeCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
-  const [minViewingTime50, setMinViewingTime50] = useState(60); // Default 60s for 50%
-  const [minViewingTime100, setMinViewingTime100] = useState(120); // Default 120s for 100%
-  const [enable50PercentMilestone, setEnable50PercentMilestone] = useState(true); // Default enabled
+  
+  // ✅ HARDCODED CONFIG - No need to load from API anymore
+  const minViewingTime50 = 10; // 10 seconds for 50%
+  const minViewingTime100 = 60; // 60 seconds for 100%
+  const enable50PercentMilestone = false; // Disabled
+  
   const [apiStatus, setApiStatus] = useState('idle'); // 'idle' | 'posting' | 'success' | 'error'
   const [apiErrorMessage, setApiErrorMessage] = useState('');
 
-  // Load config from Google Sheets (cross-device sync)
-  useEffect(() => {
-    const loadGeneralConfig = async () => {
-      try {
-        console.log('[CONFIG] Loading admin_general_config from Google Sheets...');
-        
-        // Try Google Sheets first
-        const config = await loadConfig('admin_general_config');
-        
-        if (config) {
-          const duration50 = config.pointsViewDuration50 || 60;
-          const duration100 = config.pointsViewDuration100 || 120;
-          const enable50 = config.enable50PercentMilestone !== undefined ? config.enable50PercentMilestone : true;
-          
-          console.log('[CONFIG] ✅ Loaded from Google Sheets - 50%:', duration50, '100%:', duration100, 'Enable 50%:', enable50);
-          console.log('[CONFIG] Raw config object:', config);
-          
-          setMinViewingTime50(duration50);
-          setMinViewingTime100(duration100);
-          setEnable50PercentMilestone(enable50);
-          
-          // ✅ UPDATE REF to avoid stale closure in setInterval
-          enable50PercentMilestoneRef.current = enable50;
-        } else {
-          console.log('[CONFIG] ⚠️ No config found from Google Sheets, using defaults - 50%: 60s, 100%: 120s, Enable 50%: true');
-          console.log('[CONFIG] Fallback: Check localStorage directly...');
-          
-          // Fallback: Check localStorage directly
-          const localConfig = localStorage.getItem('admin_general_config');
-          if (localConfig) {
-            console.log('[CONFIG] Found in localStorage:', localConfig);
-            const parsed = JSON.parse(localConfig);
-            const enable50Local = parsed.enable50PercentMilestone !== undefined ? parsed.enable50PercentMilestone : true;
-            setMinViewingTime50(parsed.pointsViewDuration50 || 60);
-            setMinViewingTime100(parsed.pointsViewDuration100 || 120);
-            setEnable50PercentMilestone(enable50Local);
-            
-            // ✅ UPDATE REF to avoid stale closure
-            enable50PercentMilestoneRef.current = enable50Local;
-          }
-        }
-      } catch (error) {
-        console.error('[CONFIG] ❌ Error loading config:', error);
-      }
-    };
-    
-    loadGeneralConfig();
-  }, []);
+  // ✅ CONFIG HARDCODED - No need to load from API
+  // minViewingTime50 = 10s
+  // minViewingTime100 = 60s
+  // enable50PercentMilestone = false
 
   // Cleanup on unmount
   useEffect(() => {
@@ -279,10 +237,11 @@ const DocumentListPage = () => {
     // Scroll to top to fix iPhone positioning issue
     window.scrollTo({ top: 0, behavior: 'instant' });
     
+    console.log('[OPEN DOCUMENT] Opening viewer with HARDCODED config...');
     console.log('[OPEN DOCUMENT] Config:', {
       minViewingTime50,
       minViewingTime100,
-      enable50PercentMilestone,
+      enable50PercentMilestone: enable50PercentMilestoneRef.current,
       document: document.name,
       points: document.points
     });

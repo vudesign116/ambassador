@@ -1,5 +1,18 @@
 // API Helper for syncing viewing history to server
 
+// API Version for cache busting and version control
+const API_VERSION = process.env.REACT_APP_API_VERSION || 'ambassador.2026.01.01';
+
+/**
+ * Adds version parameter to API URL
+ * @param {string} url - Base URL
+ * @returns {string} URL with version parameter
+ */
+const addVersionToUrl = (url) => {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}v=${API_VERSION}`;
+};
+
 /**
  * Posts viewing history to configured API endpoint
  * @param {string} ma_kh_dms - Customer code (e.g., "M1401079")
@@ -60,6 +73,7 @@ export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_du
 
     console.log('[API] Posting viewing history:', payload);
     console.log('[API] Endpoint:', apiEndpoint);
+    console.log('[API] API Version:', API_VERSION);
     console.log('[API] Payload details:', {
       ma_kh_dms: payload[0].ma_kh_dms,
       phone: payload[0].phone,
@@ -72,7 +86,9 @@ export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_du
     });
 
     // Make POST request (no Bearer token required for this endpoint)
-    const response = await fetch(apiEndpoint, {
+    // Add version to URL
+    const urlWithVersion = addVersionToUrl(apiEndpoint);
+    const response = await fetch(urlWithVersion, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -167,8 +183,9 @@ export const getUserInfo = async (phone) => {
       return { success: false, reason: 'missing_phone' };
     }
 
-    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_login/?phone=${cleanPhone}&test=0`;
+    const apiUrl = addVersionToUrl(`https://bi.meraplion.com/local/get_data/get_nvbc_login/?phone=${cleanPhone}&test=0`);
     console.log('[API] Getting user info via login:', cleanPhone);
+    console.log('[API] API Version:', API_VERSION);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -228,8 +245,9 @@ export const getUserPoints = async (phone) => {
       return { success: false, reason: 'missing_phone' };
     }
 
-    const apiUrl = `https://bi.meraplion.com/local/get_data/get_nvbc_point/?phone=${encodeURIComponent(cleanPhone)}&test=0`;
+    const apiUrl = addVersionToUrl(`https://bi.meraplion.com/local/get_data/get_nvbc_point/?phone=${encodeURIComponent(cleanPhone)}&test=0`);
     console.log('[API] Getting user points:', apiUrl);
+    console.log('[API] API Version:', API_VERSION);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -288,7 +306,7 @@ export const submitReferral = async (inviteePhone, referralPhone) => {
     now.setHours(now.getHours() + 7); // Add 7 hours for Vietnam timezone
     const insertedAt = now.toISOString().slice(0, -1); // Remove 'Z' at end
 
-    const apiUrl = 'https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=0';
+    const apiUrl = addVersionToUrl('https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=0');
     const payload = [{
       invitee_phone: cleanInviteePhone,
       referral_phone: cleanReferralPhone,
@@ -296,6 +314,7 @@ export const submitReferral = async (inviteePhone, referralPhone) => {
     }];
 
     console.log('[API] Submitting referral:', payload);
+    console.log('[API] API Version:', API_VERSION);
 
     const response = await fetch(apiUrl, {
       method: 'POST',

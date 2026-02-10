@@ -9,6 +9,7 @@ import DocumentList from './pages/DocumentListPage';
 import MiniGame from './pages/MiniGamePage';
 import PointHistory from './pages/PointHistoryPage';
 import RewardSelection from './pages/RewardSelectionPage';
+import RewardWinners from './pages/RewardWinnersPage';
 
 // Error Pages
 import NotFoundPage from './pages/NotFoundPage';
@@ -204,6 +205,11 @@ function App() {
             <Route path="/reward-selection" element={
               <UserProtectedRoute>
                 <RewardSelection />
+              </UserProtectedRoute>
+            } />
+            <Route path="/reward-winners" element={
+              <UserProtectedRoute>
+                <RewardWinners />
               </UserProtectedRoute>
             } />
             

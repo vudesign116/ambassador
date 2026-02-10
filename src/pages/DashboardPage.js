@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, List, Button, Dropdown, Modal, Spin, Typography, Space, Badge, Empty, Tag, Row, Col, Statistic, message } from 'antd';
-import { HomeOutlined, AppstoreOutlined, MenuOutlined, HistoryOutlined, GiftOutlined, LogoutOutlined, PlayCircleOutlined, RightOutlined, FireOutlined, RocketOutlined } from '@ant-design/icons';
+import { HomeOutlined, AppstoreOutlined, MenuOutlined, HistoryOutlined, GiftOutlined, LogoutOutlined, PlayCircleOutlined, RightOutlined, FireOutlined, RocketOutlined, TrophyOutlined } from '@ant-design/icons';
 import UserBadge from '../components/UserBadge';
 import RadarChart from '../components/RadarChart';
 import CelebrationAnimation from '../components/CelebrationAnimation';
@@ -683,6 +683,13 @@ const DashboardPage = () => {
 
   const menuItems = [
     {
+      key: 'reward-winners',
+      icon: <TrophyOutlined />,
+      label: 'DS Nhận Thưởng',
+      onClick: () => navigate('/reward-winners'),
+      style: { background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', color: 'white', fontWeight: '600' }
+    },
+    {
       key: 'reward-selection',
       icon: <GiftOutlined />,
       label: 'Xem Giải Thưởng',
@@ -731,8 +738,7 @@ const DashboardPage = () => {
               icon={<MenuOutlined />}
               style={{ 
                 color: 'white', 
-                fontSize: '20px',
-                marginLeft: 'auto'
+                fontSize: '20px'
               }}
             />
           </Dropdown>
@@ -744,6 +750,29 @@ const DashboardPage = () => {
         <>
           <div className="container">
             <div className="card card-elevated score-display" style={{ padding: '20px', marginBottom: '16px', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10 }}>
+                <Button 
+                  type="text" 
+                  icon={<TrophyOutlined />}
+                  onClick={() => navigate('/reward-winners')}
+                  style={{ 
+                    color: '#000',
+                    fontSize: '12px',
+                    padding: '4px 10px',
+                    background: '#D4EDDA',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  DS nhận thưởng
+                </Button>
+              </div>
               <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
                 <button 
                   className="btn-link" 
