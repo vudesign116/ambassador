@@ -45,9 +45,9 @@ export const postViewingHistory = async (ma_kh_dms, phone, document_id, watch_du
       return { success: false, reason: 'missing_data' };
     }
 
-    // Create GMT+7 (Vietnam) timestamp in format: "2025-12-16 10:30:00" (no T, no Z)
+    // Create Vietnam timestamp in format: "2025-12-16 10:30:00" (no T, no Z)
+    // User's local time is already VN time, no need to add 7 hours
     const now = new Date();
-    now.setHours(now.getHours() + 7); // Add 7 hours for Vietnam timezone
     // Format as YYYY-MM-DD HH:MM:SS
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -301,9 +301,9 @@ export const submitReferral = async (inviteePhone, referralPhone) => {
       return { success: false, reason: 'missing_phone' };
     }
 
-    // Create GMT+7 (Vietnam) timestamp in format: "2025-12-10T09:30:123"
+    // Create Vietnam timestamp in format: "2025-12-10T09:30:123"
+    // User's local time is already VN time, no need to add 7 hours
     const now = new Date();
-    now.setHours(now.getHours() + 7); // Add 7 hours for Vietnam timezone
     const insertedAt = now.toISOString().slice(0, -1); // Remove 'Z' at end
 
     const apiUrl = addVersionToUrl('https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=0');

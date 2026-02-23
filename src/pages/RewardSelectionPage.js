@@ -350,9 +350,9 @@ const RewardSelectionPage = () => {
       const userName = localStorage.getItem('userName') || '';
       const ma_kh_dms = localStorage.getItem('ma_kh_dms') || '';
       
-      // Vietnam timezone (UTC+7) - format: YYYY-MM-DDTHH:mm:ss.SSS (no Z)
+      // Vietnam timezone - format: YYYY-MM-DDTHH:mm:ss.SSS (no Z)
+      // User's local time is already VN time, no need to add 7 hours
       const now = new Date();
-      now.setHours(now.getHours() + 7); // Add 7 hours for Vietnam
       const vietnamTime = now.toISOString().slice(0, -1); // Remove 'Z'
       
       // 🆕 POST reward data to external API FIRST (most important)

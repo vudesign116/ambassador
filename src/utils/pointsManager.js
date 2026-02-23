@@ -312,10 +312,10 @@ export const syncPointToServer = async (pointData) => {
   }
   
   try {
-    // Create UTC+7 timestamp without 'Z' suffix
+    // Create timestamp without 'Z' suffix
+    // User's local time is already VN time, no need to add 7 hours
     const now = new Date(pointData.inserted_at || new Date());
-    const utc7Time = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-    const inserted_at = utc7Time.toISOString().replace('Z', '');
+    const inserted_at = now.toISOString().replace('Z', '');
     
     // Prepare payload as array format (API requirement)
     const payload = [
