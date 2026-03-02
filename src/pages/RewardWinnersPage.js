@@ -24,7 +24,7 @@ const RewardWinnersPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const rewardEvent = '01_26_th_monthly_reward';
+      const rewardEvent = '02_26_th_monthly_reward';
       console.log('🔄 [RewardWinners] Fetching data for event:', rewardEvent);
       console.log('🔄 [RewardWinners] API Version:', API_VERSION);
       
