@@ -302,9 +302,10 @@ export const submitReferral = async (inviteePhone, referralPhone) => {
     }
 
     // Create Vietnam timestamp in format: "2025-12-10T09:30:123"
-    // User's local time is already VN time, no need to add 7 hours
+    // toISOString() returns UTC, so we add 7 hours offset to get VN time
     const now = new Date();
-    const insertedAt = now.toISOString().slice(0, -1); // Remove 'Z' at end
+    const vnOffset = 7 * 60 * 60 * 1000; // UTC+7
+    const insertedAt = new Date(now.getTime() + vnOffset).toISOString().slice(0, -1); // Remove 'Z' at end
 
     const apiUrl = addVersionToUrl('https://bi.meraplion.com/local/post_data/insert_nvbc_ref_month_regis/?test=0');
     const payload = [{

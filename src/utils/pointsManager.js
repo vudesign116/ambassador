@@ -312,10 +312,11 @@ export const syncPointToServer = async (pointData) => {
   }
   
   try {
-    // Create timestamp without 'Z' suffix
-    // User's local time is already VN time, no need to add 7 hours
+    // Create Vietnam timestamp without 'Z' suffix
+    // toISOString() returns UTC, so we add 7 hours offset to get VN time
     const now = new Date(pointData.inserted_at || new Date());
-    const inserted_at = now.toISOString().replace('Z', '');
+    const vnOffset = 7 * 60 * 60 * 1000; // UTC+7
+    const inserted_at = new Date(now.getTime() + vnOffset).toISOString().replace('Z', '');
     
     // Prepare payload as array format (API requirement)
     const payload = [
