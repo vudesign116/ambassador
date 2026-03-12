@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, List, Button, Dropdown, Modal, Spin, Typography, Space, Badge, Empty, Tag, Row, Col, Statistic, message } from 'antd';
 import { HomeOutlined, AppstoreOutlined, MenuOutlined, HistoryOutlined, GiftOutlined, LogoutOutlined, PlayCircleOutlined, RightOutlined, FireOutlined, RocketOutlined, TrophyOutlined } from '@ant-design/icons';
 import UserBadge from '../components/UserBadge';
@@ -24,13 +24,20 @@ const { Text, Title } = Typography;
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Đọc tab từ URL param, mặc định 'overview'
+  const tabFromUrl = searchParams.get('tab');
+  const validTabs = ['overview', 'minigame'];
+  const initialTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'overview';
+
   const [playDialogOpen, setPlayDialogOpen] = useState(false);
   const [userScore, setUserScore] = useState(0); // Will be fetched from API
   const [categoryStats, setCategoryStats] = useState([]); // Category-wise points
   const [dailyTasks, setDailyTasks] = useState([]); // Tasks with dynamic points from API
   const [showCelebration, setShowCelebration] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'minigame'
+  const [activeTab, setActiveTab] = useState(initialTab); // 'overview' or 'minigame'
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1186,7 +1193,10 @@ const DashboardPage = () => {
       <div className="bottom-nav">
         <div 
           className={`nav-item ${activeTab === 'overview' ? 'nav-item-active' : ''}`}
-          onClick={() => setActiveTab('overview')}
+          onClick={() => {
+            setActiveTab('overview');
+            setSearchParams({ tab: 'overview' });
+          }}
         >
           <div className="nav-item-icon"><HomeOutlined /></div>
           <div className="nav-item-label">TỔNG QUAN</div>
@@ -1210,7 +1220,10 @@ const DashboardPage = () => {
         {/* Mini Game tab */}
         <div 
           className={`nav-item ${activeTab === 'minigame' ? 'nav-item-active' : ''}`} 
-          onClick={() => setActiveTab('minigame')}
+          onClick={() => {
+            setActiveTab('minigame');
+            setSearchParams({ tab: 'minigame' });
+          }}
         >
           <div className="nav-item-icon"><AppstoreOutlined /></div>
           <div className="nav-item-label">MINI GAME</div>

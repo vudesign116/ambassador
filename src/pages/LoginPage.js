@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Input, Button, Alert, Typography, Space, message } from 'antd';
 import { PhoneOutlined } from '@ant-design/icons';
 import logo from '../images/logo.png';
@@ -25,6 +25,10 @@ const LoginPage = () => {
   const [userMaKhDms, setUserMaKhDms] = useState('');
   const [pendingNavigation, setPendingNavigation] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get redirect destination from ?redirect= query param (if any)
+  const redirectParam = new URLSearchParams(location.search).get('redirect');
 
   // Detect mobile on resize
   useEffect(() => {
@@ -305,7 +309,10 @@ const LoginPage = () => {
         setShowReferralModal(true);
         
         // Save navigation destination to redirect after modal
-        if (rewardData.show_reward_selection === true) {
+        // Priority: ?redirect= param > show_reward_selection logic
+        if (redirectParam) {
+          setPendingNavigation(redirectParam);
+        } else if (rewardData.show_reward_selection === true) {
           setPendingNavigation('/reward-selection');
         } else {
           setPendingNavigation('/introduction');
@@ -314,7 +321,10 @@ const LoginPage = () => {
         // Skip referral modal and navigate directly
         console.log('ℹ️ [LoginPage] is_valid_invitee = false, skip referral modal');
         
-        if (rewardData.show_reward_selection === true) {
+        // Priority: ?redirect= param > show_reward_selection logic
+        if (redirectParam) {
+          navigate(redirectParam);
+        } else if (rewardData.show_reward_selection === true) {
           navigate('/reward-selection');
         } else {
           navigate('/introduction');
