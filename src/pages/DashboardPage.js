@@ -17,6 +17,7 @@ import iconBrain from '../images/icon-brain.png';
 import iconTips from '../images/icon-tips.png';
 import * as PointsManager from '../utils/pointsManager';
 import { googleSheetsService } from '../services/googleSheetsService';
+import { fetchPointDataWithCache, filterCurrentMonthHistory, clearCache } from '../utils/pointApiCache';
 
 const { Text, Title } = Typography;
 
@@ -139,17 +140,14 @@ const DashboardPage = () => {
         // Clear the update flag if it exists
         localStorage.removeItem('points_updated');
 
-        // ✅ Use production API endpoint with test=0
-        const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=0`;
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+        // ✅ Dùng cache helper: lần đầu fetch API, lần sau đọc sessionStorage (tránh 3MB lặp lại)
+        const data = await fetchPointDataWithCache(phoneNumber);
 
-        if (response.ok) {
-          const data = await response.json();
+        if (data) {
+          // 🚀 Tối ưu: chỉ iterate lich_su_diem của tháng hiện tại thay vì 13,000+ records
+          // Truyền data để dùng _lich_su_diem_month đã filter sẵn từ cache nếu có
+          const currentMonthHistory = filterCurrentMonthHistory(data.lich_su_diem, data);
+          data._currentMonthHistory = currentMonthHistory; // Attach để dùng lại bên dưới
           
           console.log('[DASHBOARD] Full API response:', {
             point: data.point,
@@ -164,7 +162,8 @@ const DashboardPage = () => {
           
           // Save API points to manager (with contentlist to map type)
           if (data && typeof data.point === 'number') {
-            const apiHistory = data.lich_su_diem || [];
+            // 🚀 Chỉ truyền tháng hiện tại vào PointsManager để tránh xử lý 13,000 records
+            const apiHistory = currentMonthHistory;
             const contentlist = data.contentlist || [];
             PointsManager.saveAPIPoints(data.point, apiHistory, contentlist);
             
@@ -185,14 +184,11 @@ const DashboardPage = () => {
           };
           
           // Calculate video/document points (monthly only for display)
+          // 🚀 Dùng currentMonthHistory đã filter sẵn — không iterate 13,000 records nữa
           let monthlyVideoPoints = 0;
-          if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
-            data.lich_su_diem.forEach(item => {
-              if (isCurrentMonth(item.inserted_at)) {
-                monthlyVideoPoints += (item.effective_point || item.point || 0);
-              }
-            });
-          }
+          currentMonthHistory.forEach(item => {
+            monthlyVideoPoints += (item.effective_point || item.point || 0);
+          });
           setVideoPoints(monthlyVideoPoints);
           
           // Add referral points (monthly only for display)
@@ -273,7 +269,9 @@ const DashboardPage = () => {
           setMiniGamePoints(monthlyMiniGamePoints);
           
           // ✅ Set userScore for radar chart = MONTHLY total (all types of points this month)
-          const monthlyTotalPoints = monthlyVideoPoints + monthlyReferralPoints + monthlyStreakBonus + monthlyMiniGamePoints;
+          // monthlyVideoPoints từ lich_su_diem đã BAO GỒM streak → không cộng thêm monthlyStreakBonus
+          // (streak hiển thị riêng ở ô "Điểm duy trì" nhưng không cộng vào tổng)
+          const monthlyTotalPoints = monthlyVideoPoints + monthlyReferralPoints + monthlyMiniGamePoints;
           setUserScore(monthlyTotalPoints);
           
           console.log('[DASHBOARD] Monthly points breakdown:', {
@@ -337,37 +335,28 @@ const DashboardPage = () => {
             }
 
             // Count points from API history using effective_point (NEW API STRUCTURE) - monthly only
+            // 🚀 Dùng currentMonthHistory đã filter sẵn
             console.log('[CATEGORY STATS] Starting monthly filter. Current month:', currentMonth, 'Year:', currentYear);
-            if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
-              data.lich_su_diem.forEach(item => {
-                const isMonthly = isCurrentMonth(item.inserted_at);
-                console.log('[CATEGORY STATS] Document:', item.document_id, 'Date:', item.inserted_at, 'isCurrentMonth:', isMonthly, 'Points:', item.effective_point || item.point);
+            currentMonthHistory.forEach(item => {
+                console.log('[CATEGORY STATS] Document:', item.document_id, 'Date:', item.inserted_at, 'Points:', item.effective_point || item.point);
+                const category = documentCategoryMap[item.document_id];
+                console.log('[CATEGORY STATS]   → Found category in map:', category, 'for doc:', item.document_id);
                 
-                // Only count points from current month
-                if (isMonthly) {
-                  const category = documentCategoryMap[item.document_id];
-                  console.log('[CATEGORY STATS]   → Found category in map:', category, 'for doc:', item.document_id);
-                  
-                  let categoryName;
-                  if (category) {
-                    categoryName = categoryMap[category];
-                    console.log('[CATEGORY STATS]   → Mapped to categoryName:', categoryName);
-                  } else {
-                    // Fallback: If document not found in contentlist (e.g., MerapLion quota exceeded)
-                    // Assign to MerapLion category by default
-                    categoryName = 'MerapLion';
-                    console.log('[CATEGORY STATS]   → Category not in map, defaulting to MerapLion');
-                  }
-                  
-                  if (categoryName) {
-                    // Use effective_point from new API structure
-                    const points = item.effective_point || item.point || 0;
-                    categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
-                    console.log('[CATEGORY STATS]   → Added', points, 'points to', categoryName, '→ Total now:', categoryPoints[categoryName]);
-                  }
+                let categoryName;
+                if (category) {
+                  categoryName = categoryMap[category];
+                  console.log('[CATEGORY STATS]   → Mapped to categoryName:', categoryName);
+                } else {
+                  categoryName = 'MerapLion';
+                  console.log('[CATEGORY STATS]   → Category not in map, defaulting to MerapLion');
                 }
-              });
-            }
+                
+                if (categoryName) {
+                  const points = item.effective_point || item.point || 0;
+                  categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
+                  console.log('[CATEGORY STATS]   → Added', points, 'points to', categoryName, '→ Total now:', categoryPoints[categoryName]);
+                }
+            });
 
             // ✅ Use pre-calculated Referral Points (from monthlyReferralPoints variable)
             categoryPoints['Điểm Giới thiệu'] = monthlyReferralPoints;
@@ -676,6 +665,9 @@ const DashboardPage = () => {
       timestamp: new Date().toISOString()
     }).catch(err => console.warn('Failed to track logout:', err));
     
+    // 🗑️ Xoá cache API khi logout để user khác login không dùng nhầm cache
+    clearCache(phoneNumber);
+
     // Clear user data (GIỮ LẠI phoneNumber để auto-fill khi login lại)
     PointsManager.resetAllPoints();
     // localStorage.removeItem('phoneNumber'); // ❌ KHÔNG XÓA - để tự động điền lại

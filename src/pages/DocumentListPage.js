@@ -616,7 +616,16 @@ const DocumentListPage = () => {
       
       Modal.error({
         title: '❌ Lỗi kết nối',
-        content: 'Không thể kết nối đến server. Điểm chưa được lưu!',
+        content: (
+          <div>
+            <p style={{ marginBottom: 0 }}>Không thể kết nối đến server. Điểm chưa được lưu!</p>
+            {error?.message && (
+              <p style={{ fontSize: 12, color: '#666', marginTop: 8, marginBottom: 0 }}>
+                Chi tiết: {error.message}
+              </p>
+            )}
+          </div>
+        ),
         okText: 'Đóng',
         centered: true,
         onOk: () => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, List, Button, Spin, Typography, Space, Tag, Statistic, Empty, Alert, Row, Col } from 'antd';
 import { ArrowLeftOutlined, TrophyOutlined, FireOutlined, GiftOutlined, PlayCircleOutlined, RocketOutlined } from '@ant-design/icons';
 import * as PointsManager from '../utils/pointsManager';
+import { fetchPointDataWithCache, filterCurrentQuarterHistory } from '../utils/pointApiCache';
 import videoFileIcon from '../images/video-file.png';
 import pdfFileIcon from '../images/pdf-file.png';
 
@@ -18,6 +19,9 @@ const PointHistoryPage = () => {
   const [streakBonus, setStreakBonus] = useState(0);
   const [videoPoints, setVideoPoints] = useState(0);
   const [miniGamePoints, setMiniGamePoints] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(50); // Chỉ render 50 dòng đầu
+
+  const PAGE_SIZE = 50; // Số dòng hiển thị mỗi lần
   
   // Calculate current quarter (1-4)
   const getCurrentQuarter = () => {
@@ -103,8 +107,9 @@ const PointHistoryPage = () => {
     }
 
     // Count points from API history (use effective_point from new API)
-    if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
-      data.lich_su_diem.forEach(item => {
+    // 🚀 data._quarterHistory đã filter sẵn
+    const filteredHistory = data._quarterHistory || (data.lich_su_diem || []);
+    filteredHistory.forEach(item => {
         const category = documentCategoryMap[item.document_id];
         if (category) {
           const categoryName = categoryMap[category];
@@ -114,8 +119,7 @@ const PointHistoryPage = () => {
             categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + points;
           }
         }
-      });
-    }
+    });
 
     // Also count points from session
     const earnedPoints = PointsManager.getEarnedPoints();
@@ -191,50 +195,39 @@ const PointHistoryPage = () => {
         return year === currentYear && quarter === currentQuarterNum;
       };
 
-      // Call API to get point history with test=0
-      const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://bi.meraplion.com/local'}/get_data/get_nvbc_point/?phone=${phoneNumber}&test=0`;
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      // ✅ Dùng cache helper: nếu Dashboard đã fetch rồi thì đọc thẳng từ cache
+      // Tránh gọi lại API 3MB+ mỗi lần vào trang PointHistory
+      const data = await fetchPointDataWithCache(phoneNumber);
 
-      if (!response.ok) {
+      if (!data) {
         throw new Error('Failed to fetch point history');
       }
 
-      const data = await response.json();
+      // 🚀 Tối ưu: filter quý hiện tại trước, không iterate toàn bộ 13,000 records
+      // Truyền data để dùng _lich_su_diem_quarter đã filter sẵn từ cache nếu có
+      const currentQuarterHistory = filterCurrentQuarterHistory(data.lich_su_diem, data);
       
       // Save API data to manager (with contentlist to map type)
       if (data && typeof data.point === 'number') {
-        const apiHistory = data.lich_su_diem || [];
+        // 🚀 Chỉ truyền quý hiện tại vào PointsManager
         const contentlist = data.contentlist || [];
-        PointsManager.saveAPIPoints(data.point, apiHistory, contentlist);
-        PointsManager.markAPIHistoryAsViewed(apiHistory);
+        PointsManager.saveAPIPoints(data.point, currentQuarterHistory, contentlist);
+        PointsManager.markAPIHistoryAsViewed(currentQuarterHistory);
       }
 
-      // ✅ Build history from lich_su_diem (API only - no localStorage session)
-      const history = [];
-      if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
-        data.lich_su_diem.forEach(item => {
-          history.push({
-            ...item,
-            type: item.type || 'video', // Default to video
-            document_name: item.document_name || 'Tài liệu'
-          });
-        });
-      }
+      // ✅ Build history từ currentQuarterHistory (đã filter sẵn, không iterate 13,000 records)
+      const history = currentQuarterHistory.map(item => ({
+        ...item,
+        type: item.type || 'video',
+        document_name: item.document_name || 'Tài liệu'
+      }));
 
       // Calculate video & document points (quarterly only)
+      // 🚀 currentQuarterHistory đã filter sẵn — không cần isCurrentQuarter() nữa
       let quarterlyVideoPoints = 0;
-      if (data.lich_su_diem && Array.isArray(data.lich_su_diem)) {
-        data.lich_su_diem.forEach(item => {
-          if (isCurrentQuarter(item.inserted_at)) {
-            quarterlyVideoPoints += (item.effective_point || item.point || 0);
-          }
-        });
-      }
+      currentQuarterHistory.forEach(item => {
+        quarterlyVideoPoints += (item.effective_point || item.point || 0);
+      });
       setVideoPoints(quarterlyVideoPoints);
 
       // TODO: Mini game points from API when available
@@ -338,6 +331,8 @@ const PointHistoryPage = () => {
       setHistoryData(combinedHistory);
 
       // Calculate category stats for RadarChart
+      // Attach _quarterHistory để calculateCategoryStats dùng lại
+      data._quarterHistory = currentQuarterHistory;
       calculateCategoryStats(data);
     } catch (err) {
       console.error('Error loading point history:', err);
@@ -381,8 +376,10 @@ const PointHistoryPage = () => {
   };
 
   const getTotalPoints = () => {
-    // Return quarterly points only: video + referral + streak + minigame
-    return videoPoints + referralPoints + streakBonus + miniGamePoints;
+    // videoPoints (từ lich_su_diem) đã BAO GỒM streak rồi (streak là subset của lich_su_diem)
+    // Chỉ cộng thêm referral (tách riêng) và miniGame
+    // KHÔNG cộng streakBonus vào đây (tránh đếm đôi)
+    return videoPoints + referralPoints + miniGamePoints;
   };
 
   if (loading) {
@@ -515,7 +512,16 @@ const PointHistoryPage = () => {
         </Row>
 
         {/* History List */}
-        <Card title="Lịch sử chi tiết">
+        <Card title={
+          <Space>
+            <span>Lịch sử chi tiết</span>
+            {historyData.length > 0 && (
+              <Text type="secondary" style={{ fontSize: 12, fontWeight: 'normal' }}>
+                (Hiển thị {Math.min(visibleCount, historyData.length)}/{historyData.length} giao dịch)
+              </Text>
+            )}
+          </Space>
+        }>
           {historyData.length === 0 ? (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -529,71 +535,96 @@ const PointHistoryPage = () => {
               }
             />
           ) : (
-            <List
-              dataSource={historyData}
-              renderItem={(item) => (
-                <List.Item
-                  extra={
-                    <Text strong style={{ color: '#3f8600', fontSize: 16 }}>
-                      +{item.effective_point || item.point || 0}
-                    </Text>
-                  }
-                >
-                  <List.Item.Meta
-                    avatar={
-                      item.type === 'streak' ? (
-                        <FireOutlined style={{ fontSize: '32px', color: '#ff4d4f' }} />
-                      ) : item.type === 'referral' ? (
-                        <GiftOutlined style={{ fontSize: '32px', color: '#52c41a' }} />
-                      ) : item.type === 'video' ? (
-                        <img src={videoFileIcon} alt="Video" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
-                      ) : (
-                        <img src={pdfFileIcon} alt="PDF" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
-                      )
+            <>
+              <List
+                dataSource={historyData.slice(0, visibleCount)}
+                renderItem={(item) => (
+                  <List.Item
+                    extra={
+                      <Text strong style={{ color: '#3f8600', fontSize: 16 }}>
+                        +{item.effective_point || item.point || 0}
+                      </Text>
                     }
-                    title={
-                      <Space size={8}>
-                        <Text strong style={{ color: '#333' }}>
-                          {item.document_name}
-                        </Text>
-                        {(item.type === 'streak' || item.type === 'referral') && (
-                          <Tag className="new-label-blink">
-                            NEW
-                          </Tag>
-                        )}
-                      </Space>
-                    }
-                    description={
-                      <Space size="small" direction="vertical" style={{ width: '100%' }}>
-                        <Space size="small">
-                          {item.type === 'streak' ? (
-                            <Tag color="red" icon={<FireOutlined />}>
-                              STREAK {item.streak_length || 0} NGÀY
-                            </Tag>
-                          ) : item.type === 'referral' ? (
-                            <Tag color="green" icon={<GiftOutlined />}>
-                              GIỚI THIỆU
-                            </Tag>
-                          ) : (
-                            <Tag color={item.type === 'video' ? 'blue' : 'orange'}>
-                              {item.type === 'video' ? 'VIDEO' : 'PDF'}
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        item.type === 'streak' ? (
+                          <FireOutlined style={{ fontSize: '32px', color: '#ff4d4f' }} />
+                        ) : item.type === 'referral' ? (
+                          <GiftOutlined style={{ fontSize: '32px', color: '#52c41a' }} />
+                        ) : item.type === 'video' ? (
+                          <img src={videoFileIcon} alt="Video" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+                        ) : (
+                          <img src={pdfFileIcon} alt="PDF" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+                        )
+                      }
+                      title={
+                        <Space size={8}>
+                          <Text strong style={{ color: '#333' }}>
+                            {item.document_name}
+                          </Text>
+                          {(item.type === 'streak' || item.type === 'referral') && (
+                            <Tag className="new-label-blink">
+                              NEW
                             </Tag>
                           )}
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {formatDate(item.inserted_at)}
-                          </Text>
                         </Space>
-                        {item.watch_duration_seconds && (
-                          <Tag color="green" icon={<TrophyOutlined />}>
-                            Xem: {formatWatchDuration(item.watch_duration_seconds)}
-                          </Tag>
-                        )}
-                      </Space>
-                    }
-                  />
-                </List.Item>
+                      }
+                      description={
+                        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+                          <Space size="small">
+                            {item.type === 'streak' ? (
+                              <Tag color="red" icon={<FireOutlined />}>
+                                STREAK {item.streak_length || 0} NGÀY
+                              </Tag>
+                            ) : item.type === 'referral' ? (
+                              <Tag color="green" icon={<GiftOutlined />}>
+                                GIỚI THIỆU
+                              </Tag>
+                            ) : (
+                              <Tag color={item.type === 'video' ? 'blue' : 'orange'}>
+                                {item.type === 'video' ? 'VIDEO' : 'PDF'}
+                              </Tag>
+                            )}
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {formatDate(item.inserted_at)}
+                            </Text>
+                          </Space>
+                          {item.watch_duration_seconds && (
+                            <Tag color="green" icon={<TrophyOutlined />}>
+                              Xem: {formatWatchDuration(item.watch_duration_seconds)}
+                            </Tag>
+                          )}
+                        </Space>
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+
+              {/* Footer: xem thêm hoặc thông báo đã hết */}
+              {visibleCount < historyData.length ? (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <Button
+                    type="default"
+                    onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
+                    style={{ marginBottom: 8 }}
+                  >
+                    Xem thêm {Math.min(PAGE_SIZE, historyData.length - visibleCount)} giao dịch
+                  </Button>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Còn {historyData.length - visibleCount} giao dịch chưa hiển thị
+                  </Text>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    ✅ Đã hiển thị tất cả {historyData.length} giao dịch trong quý này
+                  </Text>
+                </div>
               )}
-            />
+            </>
           )}
         </Card>
       </div>
