@@ -336,7 +336,9 @@ const PointHistoryPage = () => {
       calculateCategoryStats(data);
     } catch (err) {
       console.error('Error loading point history:', err);
-      setError('Không thể tải lịch sử điểm. Vui lòng thử lại sau.');
+      // Hiển thị lỗi thực từ API/network để dễ debug
+      const errDetail = err?.message || String(err) || 'Unknown error';
+      setError(`Không thể tải lịch sử điểm. Lỗi: ${errDetail}`);
       
       // Fallback: Get combined history or sample data
       const history = PointsManager.getCombinedHistory();
