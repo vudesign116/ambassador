@@ -39,32 +39,15 @@ const BASE_KEYS = {
 
 /**
  * Lưu điểm từ API vào localStorage
- * @param {number} totalPoints - Tổng điểm
- * @param {Array} history - Lịch sử điểm từ lich_su_diem
- * @param {Array} contentlist - Danh sách tài liệu từ API để map type
+ * CHÚ Ý: Chỉ lưu totalPoints (số) và lastSyncTime.
+ * KHÔNG lưu history vào localStorage để tránh tràn quota (~5MB).
+ * History đã được cache trong sessionStorage qua pointApiCache.js.
  */
 export const saveAPIPoints = (totalPoints, history = [], contentlist = []) => {
-  // Tạo map document_id -> type từ contentlist
-  const documentTypeMap = {};
-  if (contentlist && Array.isArray(contentlist)) {
-    contentlist.forEach(category => {
-      if (category.subcategories && Array.isArray(category.subcategories)) {
-        category.subcategories.forEach(doc => {
-          documentTypeMap[doc.document_id] = doc.type || 'pdf';
-        });
-      }
-    });
-  }
-  
-  // Enrich history với type từ contentlist
-  const enrichedHistory = history.map(item => ({
-    ...item,
-    type: documentTypeMap[item.document_id] || 'pdf'
-  }));
-  
+  // Chỉ lưu tổng điểm (số nhỏ, không tràn)
   localStorage.setItem(getStorageKey(BASE_KEYS.API_TOTAL_POINTS), totalPoints.toString());
-  localStorage.setItem(getStorageKey(BASE_KEYS.API_HISTORY), JSON.stringify(enrichedHistory));
   localStorage.setItem(getStorageKey(BASE_KEYS.LAST_SYNC_TIME), new Date().toISOString());
+  // KHÔNG lưu API_HISTORY vào localStorage nữa — dùng sessionStorage cache thay thế
 };
 
 /**
@@ -76,11 +59,17 @@ export const getAPITotalPoints = () => {
 };
 
 /**
- * Lấy lịch sử điểm từ API
+ * Lấy lịch sử điểm từ API (localStorage)
+ * History không còn được lưu vào localStorage nữa → luôn trả về []
+ * Dùng sessionStorage cache (pointApiCache.js) để lấy history.
  */
 export const getAPIHistory = () => {
-  const history = localStorage.getItem(getStorageKey(BASE_KEYS.API_HISTORY));
-  return history ? JSON.parse(history) : [];
+  // Xóa key cũ nếu còn tồn tại (tránh chiếm localStorage quota)
+  const oldKey = getStorageKey(BASE_KEYS.API_HISTORY);
+  if (localStorage.getItem(oldKey)) {
+    localStorage.removeItem(oldKey);
+  }
+  return [];
 };
 
 /**
