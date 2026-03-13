@@ -268,10 +268,11 @@ const DashboardPage = () => {
           const monthlyMiniGamePoints = 0;
           setMiniGamePoints(monthlyMiniGamePoints);
           
-          // ✅ Set userScore for radar chart = MONTHLY total (all types of points this month)
-          // monthlyVideoPoints từ lich_su_diem đã BAO GỒM streak → không cộng thêm monthlyStreakBonus
-          // (streak hiển thị riêng ở ô "Điểm duy trì" nhưng không cộng vào tổng)
-          const monthlyTotalPoints = monthlyVideoPoints + monthlyReferralPoints + monthlyMiniGamePoints;
+          // ✅ Set userScore = MONTHLY total (tất cả loại điểm tháng này)
+          // streak NAM NGOAI lich_su_diem => PHAI cong vao tong
+          // monthlyVideoPoints = lich_su_diem tháng này (chưa có streak)
+          // monthlyStreakBonus = lich_su_diem_streak tháng này (riêng)
+          const monthlyTotalPoints = monthlyVideoPoints + monthlyStreakBonus + monthlyReferralPoints + monthlyMiniGamePoints;
           setUserScore(monthlyTotalPoints);
           
           console.log('[DASHBOARD] Monthly points breakdown:', {

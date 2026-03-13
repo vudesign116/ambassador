@@ -378,10 +378,11 @@ const PointHistoryPage = () => {
   };
 
   const getTotalPoints = () => {
-    // videoPoints (từ lich_su_diem) đã BAO GỒM streak rồi (streak là subset của lich_su_diem)
-    // Chỉ cộng thêm referral (tách riêng) và miniGame
-    // KHÔNG cộng streakBonus vào đây (tránh đếm đôi)
-    return videoPoints + referralPoints + miniGamePoints;
+    // streak NAM NGOAI lich_su_diem (tach rieng) => PHAI cong vao tong
+    // videoPoints = lich_su_diem (chua co streak)
+    // streakBonus = lich_su_diem_streak (rieng)
+    // referralPoints = lich_su_diem_referral (rieng)
+    return videoPoints + streakBonus + referralPoints + miniGamePoints;
   };
 
   if (loading) {
