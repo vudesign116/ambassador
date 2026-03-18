@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.86e51cb2.css",
-    "main.js": "/static/js/main.0fd90a6a.js",
+    "main.css": "/static/css/main.4331beaa.css",
+    "main.js": "/static/js/main.2aaea1a8.js",
     "static/media/scoring-banner.jpg": "/static/media/scoring-banner.bbdc0512f7f81e008743.jpg",
     "static/media/mai.png": "/static/media/mai.693200e5abdd9577cf6b.png",
     "static/media/banner.png": "/static/media/banner.9a1e3681f879348861ba.png",
@@ -15,7 +15,7 @@
     "index.html": "/index.html"
   },
   "entrypoints": [
-    "static/css/main.86e51cb2.css",
-    "static/js/main.0fd90a6a.js"
+    "static/css/main.4331beaa.css",
+    "static/js/main.2aaea1a8.js"
   ]
 }

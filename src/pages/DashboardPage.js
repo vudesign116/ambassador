@@ -18,6 +18,7 @@ import iconTips from '../images/icon-tips.png';
 import * as PointsManager from '../utils/pointsManager';
 import { googleSheetsService } from '../services/googleSheetsService';
 import { fetchPointDataWithCache, filterCurrentMonthHistory, clearCache } from '../utils/pointApiCache';
+import { loadConfig } from '../utils/configSync';
 
 const { Text, Title } = Typography;
 
@@ -84,13 +85,47 @@ const DashboardPage = () => {
   
   // Mini games list - loaded from admin config
   const [games, setGames] = useState([]);
+  const [gamesLoading, setGamesLoading] = useState(true);
+
+  // Derived: game status for nav badge
+  const gameStatus = !gamesLoading && games.length > 0
+    ? (games.some(g => g.available) ? 'live' : 'soon')
+    : null;
+
+  // Override mini-game task status based on actual games state (avoids race condition with dailyTasks)
+  const getEffectiveTask = (task) => {
+    if (task.category !== 'mini-game') return task;
+    if (gamesLoading) return task; // still loading, keep original
+    const hasGames = games.length > 0;
+    return {
+      ...task,
+      isComingSoon: !hasGames,
+      isDisabled: false,
+      points: !hasGames
+        ? 'Sắp diễn ra'
+        : games.some(g => g.available) ? 'Đang diễn ra' : 'Sắp diễn ra'
+    };
+  };
 
   // Load mini games from admin config
   useEffect(() => {
-    const adminGames = localStorage.getItem('admin_minigames');
-    if (adminGames) {
-      setGames(JSON.parse(adminGames));
-    }
+    const fetchGames = async () => {
+      setGamesLoading(true);
+      try {
+        // Đọc đúng key 'admin_mini_games_config' (key admin dùng khi lưu)
+        const savedGames = await loadConfig('admin_mini_games_config');
+        if (savedGames && Array.isArray(savedGames)) {
+          setGames(savedGames);
+        } else {
+          // Fallback: thử key cũ
+          const legacy = localStorage.getItem('admin_minigames');
+          if (legacy) setGames(JSON.parse(legacy));
+        }
+      } finally {
+        setGamesLoading(false);
+      }
+    };
+    fetchGames();
   }, []);
 
   // Listen for points update flag when user returns from document page
@@ -627,15 +662,10 @@ const DashboardPage = () => {
     
     // Special handling for Mini Game
     if (task.category === 'mini-game') {
-      if (!task.isComingSoon) {
-        // When Mini Game is available, open the play dialog
-        setPlayDialogOpen(true);
-        // Scroll to ensure user sees the dialog
-        setTimeout(() => {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100);
-      }
-      // If coming soon, do nothing (already disabled in UI)
+      // Navigate to minigame tab
+      setActiveTab('minigame');
+      setSearchParams({ tab: 'minigame' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     
@@ -1064,7 +1094,9 @@ const DashboardPage = () => {
 
               <List
                 dataSource={dailyTasks}
-                renderItem={(task) => (
+                renderItem={(rawTask) => {
+                  const task = getEffectiveTask(rawTask);
+                  return (
                   <List.Item
                     onClick={(task.isComingSoon || task.isDisabled) ? undefined : () => handleTaskClick(task)}
                     style={{ 
@@ -1116,7 +1148,8 @@ const DashboardPage = () => {
                       }
                     />
                   </List.Item>
-                )}
+                  );
+                }}
               />
             </Card>
           </div>
@@ -1130,7 +1163,11 @@ const DashboardPage = () => {
       {/* Mini Game Tab Content */}
       {activeTab === 'minigame' && (
         <div className="container" style={{ paddingTop: '20px', paddingBottom: '80px' }}>
-          {games.length === 0 ? (
+          {gamesLoading ? (
+            <div style={{ padding: '40px 0', textAlign: 'center' }}>
+              <Spin size="large" tip="Đang tải danh sách Mini Game..." />
+            </div>
+          ) : games.length === 0 ? (
             <Card>
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -1218,7 +1255,14 @@ const DashboardPage = () => {
             setSearchParams({ tab: 'minigame' });
           }}
         >
-          <div className="nav-item-icon"><AppstoreOutlined /></div>
+          <div className="nav-item-icon" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AppstoreOutlined />
+            {gameStatus && (
+              <span className={`game-status-dot ${gameStatus === 'live' ? 'badge-live' : 'badge-soon'}`}>
+                {gameStatus === 'live' ? 'Live' : 'Soon'}
+              </span>
+            )}
+          </div>
           <div className="nav-item-label">MINI GAME</div>
         </div>
       </div>
@@ -1236,7 +1280,9 @@ const DashboardPage = () => {
 
         <List
           dataSource={dailyTasks}
-          renderItem={(task) => (
+          renderItem={(rawTask) => {
+            const task = getEffectiveTask(rawTask);
+            return (
             <List.Item
               onClick={(task.isComingSoon || task.isDisabled) ? undefined : () => handleTaskClick(task)}
               style={{ 
@@ -1284,7 +1330,8 @@ const DashboardPage = () => {
                 }
               />
             </List.Item>
-          )}
+            );
+          }}
         />
       </Modal>
 

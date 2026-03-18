@@ -948,6 +948,7 @@ input, select, textarea {
 .nav-item-icon {
   font-size: 20px;
   margin-bottom: 4px;
+  overflow: visible;
 }
 
 .nav-item-label {
@@ -2565,7 +2566,7 @@ input, select, textarea {
 }
 
 .game-card.game-disabled {
-  opacity: 0.6;
+  opacity: 0.85;
   cursor: not-allowed;
 }
 
@@ -2576,7 +2577,7 @@ input, select, textarea {
 
 .game-thumbnail {
   position: relative;
-  height: 160px;
+  height: 220px;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   overflow: hidden;
 }
@@ -2617,6 +2618,37 @@ input, select, textarea {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+/* Game status badge on nav tab */
+@keyframes pulse-live {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.75; }
+}
+
+.game-status-dot {
+  position: absolute;
+  top: -8px;
+  left: calc(100% - 2px);
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.game-status-dot.badge-live {
+  background: #52c41a;
+  color: white;
+  animation: pulse-live 1.2s ease-in-out infinite;
+}
+
+.game-status-dot.badge-soon {
+  background: #faad14;
+  color: white;
+  animation: blink-red 1.8s ease-in-out infinite;
 }
 
 .game-info {
