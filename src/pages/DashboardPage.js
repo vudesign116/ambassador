@@ -776,8 +776,8 @@ const DashboardPage = () => {
       </div>
 
       {/* Overview Tab Content */}
-      {activeTab === 'overview' && (
-        <>
+      {/* Overview Tab Content */}
+      <div style={{ display: activeTab === 'overview' ? 'block' : 'none' }}>
           <div className="container">
             <div className="card card-elevated score-display" style={{ padding: '20px', marginBottom: '16px', position: 'relative' }}>
               <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10 }}>
@@ -1157,11 +1157,10 @@ const DashboardPage = () => {
           <button className="fab" onClick={() => setPlayDialogOpen(true)}>
             ▶️
           </button>
-        </>
-      )}
+      </div>
 
       {/* Mini Game Tab Content */}
-      {activeTab === 'minigame' && (
+      <div style={{ display: activeTab === 'minigame' ? 'block' : 'none' }}>
         <div className="container" style={{ paddingTop: '20px', paddingBottom: '80px' }}>
           {gamesLoading ? (
             <div style={{ padding: '40px 0', textAlign: 'center' }}>
@@ -1218,7 +1217,7 @@ const DashboardPage = () => {
               </div>
             )}
         </div>
-      )}
+      </div>
 
       <div className="bottom-nav">
         <div 
