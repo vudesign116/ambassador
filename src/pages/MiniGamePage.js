@@ -1,50 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Empty, Typography, Row, Col, Badge } from 'antd';
 import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { loadConfig } from '../utils/configSync';
 
 const { Title, Text } = Typography;
 
 const MiniGamePage = () => {
   const navigate = useNavigate();
-  const [games] = useState([
-    // Sample games để test - Uncomment để xem
-    {
-      id: 1,
-      title: 'MerapLion Puzzle',
-      description: 'Xếp hình ghép MerapLion thành công!',
-      thumbnail: 'https://via.placeholder.com/400x160/667eea/ffffff?text=Puzzle+Game',
-      url: 'https://example.com/game-puzzle', // Link đến minigame
-      available: true,
-      comingSoon: false
-    },
-    {
-      id: 2,
-      title: 'Pharma Quiz',
-      description: 'Câu đố kiến thức dược phẩm',
-      thumbnail: 'https://via.placeholder.com/400x160/764ba2/ffffff?text=Quiz+Game',
-      url: 'https://example.com/game-quiz',
-      available: true,
-      comingSoon: false
-    },
-    {
-      id: 3,
-      title: 'Memory Match',
-      description: 'Tìm cặp thẻ giống nhau',
-      thumbnail: 'https://via.placeholder.com/400x160/f093fb/ffffff?text=Memory+Game',
-      url: 'https://example.com/game-memory',
-      available: false,
-      comingSoon: true
-    }
-    // Để trống array = không có game: []
-  ]);
+  const [games, setGames] = useState([]);
+
+  useEffect(() => {
+    loadConfig('admin_mini_games_config').then((saved) => {
+      console.log('[MiniGame] loadConfig result:', saved);
+      if (saved && Array.isArray(saved)) {
+        setGames(saved);
+      }
+    }).catch((err) => {
+      console.error('[MiniGame] loadConfig ERROR:', err);
+    });
+  }, []);
 
   const handleGameClick = (game) => {
-    if (game.available && game.url) {
-      // Mở game trong tab mới
-      window.open(game.url, '_blank', 'noopener,noreferrer');
-      console.log('Opening game:', game.title, game.url);
-    }
+    const phone = localStorage.getItem('phoneNumber') || '';
+    const isAvailable = game.available === true || game.available === 'true';
+    console.log('[MiniGame] click — available:', game.available, '| phone:', phone, '| url:', game.url);
+    if (!game.url || !isAvailable) return;
+    const resolvedUrl = game.url
+      .replace(/\{phone\}/g, encodeURIComponent(phone))
+      .replace(/%7Bphone%7D/gi, encodeURIComponent(phone));
+    console.log('[MiniGame] opening:', resolvedUrl);
+    window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
   };
 
 

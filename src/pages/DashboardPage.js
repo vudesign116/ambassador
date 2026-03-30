@@ -676,8 +676,11 @@ const DashboardPage = () => {
   // Handle mini game click
   const handleGameClick = (game) => {
     if (game.available && game.url) {
-      window.open(game.url, '_blank', 'noopener,noreferrer');
-      console.log('Opening game:', game.title, game.url);
+      const phone = localStorage.getItem('phoneNumber') || '';
+      const resolvedUrl = game.url
+        .replace(/\{phone\}/g, encodeURIComponent(phone))
+        .replace(/%7Bphone%7D/gi, encodeURIComponent(phone));
+      window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
     }
   };
 

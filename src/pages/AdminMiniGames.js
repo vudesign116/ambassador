@@ -151,6 +151,25 @@ const AdminMiniGames = () => {
       ellipsis: true,
     },
     {
+      title: 'Link',
+      dataIndex: 'url',
+      key: 'url',
+      ellipsis: true,
+      render: (url) => url ? (
+        <Typography.Text
+          copyable={{ text: url }}
+          style={{ fontSize: 12 }}
+          ellipsis={{ tooltip: url }}
+        >
+          {url.includes('{phone}') ? (
+            <Tag color="blue" icon={<LinkOutlined />}>Dynamic (phone)</Tag>
+          ) : (
+            <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+          )}
+        </Typography.Text>
+      ) : <Typography.Text type="secondary">—</Typography.Text>,
+    },
+    {
       title: 'Trạng thái',
       key: 'status',
       width: 150,
@@ -308,8 +327,17 @@ const AdminMiniGames = () => {
           <Form.Item
             label="Link liên kết"
             name="url"
+            extra={
+              <span style={{ fontSize: 12, color: '#888' }}>
+                Dùng <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3 }}>{'{phone}'}</code> để tự động điền SĐT của user khi bấm chơi.
+                <br />
+                Ví dụ: <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3, wordBreak: 'break-all' }}>
+                  https://eoffice.meraplion.com/minigame/ten-game/v-login?phone={'{phone}'}
+                </code>
+              </span>
+            }
           >
-            <Input placeholder="https://example.com/game" type="url" />
+            <Input placeholder="https://eoffice.meraplion.com/minigame/ten-game/v-login?phone={phone}" />
           </Form.Item>
 
           <Form.Item
