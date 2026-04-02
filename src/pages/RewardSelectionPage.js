@@ -8,6 +8,16 @@ import '../styles/RewardSelection.css';
 
 const { Title, Text, Paragraph } = Typography;
 
+// Normalize API key aliases to canonical reward type names
+const normalizeRewardKey = (key) => {
+  const mapping = {
+    'list_chon_monthly': 'th_monthly_reward',
+    'list_chon_cgsp':    'product_expert_reward',
+    'list_chon_dgcc':    'avid_reader_reward',
+  };
+  return mapping[key] || key;
+};
+
 const RewardSelectionPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -302,7 +312,8 @@ const RewardSelectionPage = () => {
     // Loop through all keys in rewardData (except show_reward_selection and point)
     Object.keys(rewardData).forEach(key => {
       if (key !== 'show_reward_selection' && key !== 'point' && rewardData[key] === true) {
-        rewardTypes.push(key);
+        const normalized = normalizeRewardKey(key);
+        if (!rewardTypes.includes(normalized)) rewardTypes.push(normalized);
       }
     });
 
@@ -533,13 +544,14 @@ const RewardSelectionPage = () => {
     );
   }
 
-  // ✅ NEW: Dynamic reward types based on API response
+  // ✅ NEW: Dynamic reward types based on API response (normalized to canonical keys)
   const rewardTypes = [];
   if (rewardData) {
     Object.keys(rewardData).forEach(key => {
       // Skip non-reward keys
       if (key !== 'show_reward_selection' && key !== 'point' && rewardData[key] === true) {
-        rewardTypes.push(key);
+        const normalized = normalizeRewardKey(key);
+        if (!rewardTypes.includes(normalized)) rewardTypes.push(normalized);
       }
     });
   }
