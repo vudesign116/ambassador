@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Khảo Sát CT Trả Thưởng Loyalty 2026 – Du Lịch Nước Ngoài</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* ══════════════════════════════════════
+       RESET & BASE
+    ══════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Noto Sans', 'Helvetica Neue', sans-serif;
+      background: #060f2a;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    button {
+      font-family: inherit;
+    }
+
+    /* ══════════════════════════════════════
+       PAGE WRAPPER
+    ══════════════════════════════════════ */
+    .page-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 430px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════
+       BACKGROUND SLIDESHOW
+    ══════════════════════════════════════ */
+    .bg-slideshow {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 430px;
+      height: 100%;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bg-slide {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+      opacity: 0;
+      transition: opacity 1.4s ease-in-out;
+    }
+
+    .bg-slide.active {
+      opacity: 1;
+    }
+
+    /* ══════════════════════════════════════
+       CONTENT ABOVE BG
+    ══════════════════════════════════════ */
+    .page-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+    }
+
+    /* ══════════════════════════════════════
+       HEADER
+    ══════════════════════════════════════ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px 12px;
+    }
+
+    .header__logo-left {
+      height: 40px;
+      width: auto;
+    }
+
+    .header__logo-right {
+      height: 24px;
+      width: auto;
+      align-self: center;
+    }
+
+    /* ══════════════════════════════════════
+       TITLE SECTION
+    ══════════════════════════════════════ */
+    .title-section {
+      padding: 4px 16px 12px;
+      margin-top: 50px;
+    }
+
+    .title-section img {
+      width: 80%;
+      height: auto;
+      margin: 0 auto;
+    }
+
+    /* ══════════════════════════════════════
+       CONTENT AREA
+    ══════════════════════════════════════ */
+    .content-area {
+      flex: 1;
+      padding: 0 16px 40px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ══════════════════════════════════════
+       SCREEN VISIBILITY
+    ══════════════════════════════════════ */
+    .screen {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .screen.active {
+      display: flex;
+      animation: screenIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes screenIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════
+       CARD
+    ══════════════════════════════════════ */
+    .card {
+      background: rgba(255, 255, 255, 0.93);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════
+       FORM SCREEN
+    ══════════════════════════════════════ */
+    .form-card {
+      padding: 20px 20px 22px;
+    }
+
+    .form-group {
+      margin-bottom: 13px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #0a1535;
+      margin-bottom: 5px;
+    }
+
+    .form-label .req {
+      color: #d93025;
+    }
+
+    /* Custom select wrapper */
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #0a1535;
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    .form-select {
+      display: block;
+      width: 100%;
+      height: 44px;
+      border: 1.5px solid #c8d4e8;
+      border-radius: 10px;
+      padding: 0 36px 0 12px;
+      font-family: 'Noto Sans', sans-serif;
+      font-size: 14px;
+      color: #0a1535;
+      background: #ffffff;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .form-select:focus {
+      border-color: #00A79D;
+      box-shadow: 0 0 0 3px rgba(0, 167, 157, 0.12);
+    }
+
+    .form-select.input-error {
+      border-color: #d93025;
+      box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.12);
+    }
+
+    .form-select option[value=""] {
+      color: #aaa;
+    }
+
+    .form-error {
+      font-size: 12.5px;
+      color: #d93025;
+      margin-top: 4px;
+      font-weight: 600;
+      display: none;
+    }
+
+    /* ── TOUR INVITE TEXT ── */
+    .tour-invite {
+      font-size: 13.5px;
+      font-weight: 400;
+      color: #0a1535;
+      line-height: 1.55;
+      margin-bottom: 14px;
+    }
+
+    /* ── TOUR OPTIONS ── */
+    .tour-options {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .tour-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1.5px solid transparent;
+      background: rgba(0,167,157,0.04);
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    }
+
+    .tour-option:active {
+      transform: scale(0.98);
+    }
+
+    .tour-option.selected {
+      border-color: #00A79D;
+      background: rgba(0,167,157,0.08);
+    }
+
+    .tour-radio {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #c8d4e8;
+      position: relative;
+      transition: border-color 0.15s, background 0.15s;
+      margin-top: 1px;
+    }
+
+    .tour-option.selected .tour-radio {
+      border-color: #00A79D;
+      background: #00A79D;
+    }
+
+    .tour-option.selected .tour-radio::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .tour-label {
+      flex: 1;
+    }
+
+    .tour-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0a1535;
+      line-height: 1.45;
+    }
+
+    .tour-option.selected .tour-name {
+      color: #007a72;
+    }
+
+    .tour-detail-link {
+      display: inline-block;
+      margin-top: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #00A79D;
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── PRIVACY NOTE ── */
+    .privacy-note {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      font-style: italic;
+    }
+
+    /* ── SUBMIT BUTTON ── */
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 52px;
+      background: linear-gradient(90deg, #007a72, #00A79D, #00c4b8, #00A79D, #007a72);
+      background-size: 300% 100%;
+      color: #ffffff;
+      font-size: 15.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      border: none;
+      border-radius: 32px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+      animation: btnShift 7s ease-in-out infinite;
+    }
+
+    @keyframes btnShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 60% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .btn-primary:active {
+      opacity: 0.82;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .link-cskh {
+      display: block;
+      text-align: center;
+      margin-top: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #00A79D;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .link-cskh:active {
+      opacity: 0.7;
+    }
+
+    /* ══════════════════════════════════════
+       DETAIL SCREEN
+    ══════════════════════════════════════ */
+    .detail-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0 14px;
+    }
+
+    .detail-back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      color: #fff;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+
+    .detail-title-wrap {
+      flex: 1;
+    }
+
+    .detail-title-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.7);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .detail-title-text {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    .detail-card {
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.95);
+    }
+
+    .detail-card.slide-out-left {
+      animation: detailFadeOut 0.25s ease both;
+    }
+
+    .detail-card.slide-in-right {
+      animation: detailFadeIn 0.35s ease both;
+    }
+
+    @keyframes detailFadeOut {
+      from { opacity: 1; }
+      to   { opacity: 0; }
+    }
+
+    @keyframes detailFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .detail-tour-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: zoom-in;
+    }
+
+    /* ── LIGHTBOX ── */
+    .lightbox-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .lightbox-overlay.open {
+      display: flex;
+    }
+
+    .lightbox-overlay img {
+      max-width: 100%;
+      max-height: 90dvh;
+      border-radius: 12px;
+      object-fit: contain;
+      animation: lbZoomIn 0.25s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    @keyframes lbZoomIn {
+      from { transform: scale(0.85); opacity: 0; }
+      to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .lightbox-close {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.3);
+      color: #fff;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10000;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .detail-body {
+      padding: 18px 18px 22px;
+    }
+
+    .detail-tour-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0a1535;
+      line-height: 1.4;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    /* Mini radio list in detail */
+    .detail-option-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #00A79D;
+      background: rgba(0,167,157,0.06);
+      margin-bottom: 14px;
+    }
+
+    .detail-radio {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid #00A79D;
+      background: #00A79D;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .detail-radio::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .detail-option-label {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #007a72;
+      line-height: 1.4;
+    }
+
+    .btn-choose-tour {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 50px;
+      background: linear-gradient(90deg, #007a72, #00A79D, #00c4b8, #00A79D, #007a72);
+      background-size: 300% 100%;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      border: none;
+      border-radius: 28px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      animation: btnShift 7s ease-in-out infinite;
+      margin-bottom: 12px;
+    }
+
+    .btn-choose-tour:active {
+      opacity: 0.82;
+    }
+
+    .btn-other-tours {
+      display: block;
+      text-align: center;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #00A79D;
+      text-decoration: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      padding: 4px 0;
+      width: 100%;
+    }
+
+    /* ══════════════════════════════════════
+       THANK YOU SCREEN
+    ══════════════════════════════════════ */
+    .thank-card {
+      padding: 32px 24px 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .thank-img-wrap {
+      width: 65%;
+      max-width: 210px;
+      margin: 0 auto 18px;
+    }
+
+    .thank-img-wrap img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .thank-note {
+      font-size: 14px;
+      color: #0a1535;
+      line-height: 1.7;
+      margin-bottom: 8px;
+      font-weight: 400;
+    }
+
+    .thank-sign {
+      font-size: 14px;
+      color: #0a1535;
+      font-weight: 600;
+      margin-bottom: 28px;
+    }
+
+    .btn-contact {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 52px;
+      background: linear-gradient(90deg, #007a72, #00A79D, #00c4b8, #00A79D, #007a72);
+      background-size: 300% 100%;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      border: none;
+      border-radius: 32px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      text-decoration: none;
+      animation: btnShift 7s ease-in-out infinite;
+    }
+
+    .btn-contact:active {
+      opacity: 0.82;
+    }
+
+    /* ══════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════ */
+    .toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(10, 21, 53, 0.92);
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 9999;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ══════════════════════════════════════
+       FOOTER
+    ══════════════════════════════════════ */
+    .footer {
+      padding: 12px 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .footer img {
+      height: 40px;
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background slideshow -->
+<div class="bg-slideshow">
+  <div class="bg-slide active" style="background-image: url('image/bg-loyalty-1.png')"></div>
+  <div class="bg-slide"        style="background-image: url('image/bg-loyalty-2.png')"></div>
+  <div class="bg-slide"        style="background-image: url('image/bg-loyalty-3.png')"></div>
+</div>
+
+<div class="page-wrapper">
+<div class="page-inner">
+
+  <!-- ═══════════════════════════
+       HEADER
+  ═══════════════════════════ -->
+  <header class="header" id="main-header"></header>
+
+  <!-- ═══════════════════════════
+       TITLE
+  ═══════════════════════════ -->
+  <div class="title-section" id="main-title">
+    <img src="image/title-loyaty.png"
+         alt="Khảo Sát CT Trả Thưởng Loyalty 2026 – Du Lịch Nước Ngoài">
+  </div>
+
+  <!-- ═══════════════════════════
+       CONTENT AREA
+  ═══════════════════════════ -->
+  <main class="content-area">
+
+    <!-- ── SCREEN: FORM ── -->
+    <div id="screen-form" class="screen active">
+      <div class="card">
+        <div class="form-card">
+          <form id="survey-form" onsubmit="submitSurvey(event)" novalidate>
+
+            <!-- Tỉnh thành -->
+            <div class="form-group">
+              <label class="form-label" for="f-province">
+                Tỉnh thành <span class="req">*</span>
+              </label>
+              <div class="select-wrap">
+                <select class="form-select" id="f-province" name="province" onchange="onProvinceChange()" required>
+                  <option value="">Chọn tỉnh thành</option>
+                </select>
+              </div>
+              <p class="form-error" id="err-province">Vui lòng chọn tỉnh thành.</p>
+            </div>
+
+            <!-- Tên nhà thuốc -->
+            <div class="form-group">
+              <label class="form-label" for="f-pharmacy">
+                Tên nhà thuốc <span class="req">*</span>
+              </label>
+              <div class="select-wrap">
+                <select class="form-select" id="f-pharmacy" name="pharmacy" required>
+                  <option value="">Chọn nhà thuốc</option>
+                </select>
+              </div>
+              <p class="form-error" id="err-pharmacy">Vui lòng chọn nhà thuốc.</p>
+            </div>
+
+            <!-- Tour invite -->
+            <p class="tour-invite">
+              Mời Quý KH tham gia khảo sát chọn tour cho CT Loyalty 2026:
+            </p>
+
+            <!-- Tour options -->
+            <ul class="tour-options" id="tour-options">
+              <li class="tour-option" data-index="0" onclick="selectTour(0)">
+                <div class="tour-radio"></div>
+                <div class="tour-label">
+                  <div class="tour-name">Tour Hàn Quốc: Trải Nghiệm Trọn Vẹn Busan</div>
+                  <button type="button" class="tour-detail-link" onclick="viewDetail(event, 0)">Xem chi tiết chương trình ›</button>
+                </div>
+              </li>
+              <li class="tour-option" data-index="1" onclick="selectTour(1)">
+                <div class="tour-radio"></div>
+                <div class="tour-label">
+                  <div class="tour-name">Hành Trình Tinh Hoa Hong Kong - Chu Hải - Thâm Quyến - Quảng Châu</div>
+                  <button type="button" class="tour-detail-link" onclick="viewDetail(event, 1)">Xem chi tiết chương trình ›</button>
+                </div>
+              </li>
+              <li class="tour-option" data-index="2" onclick="selectTour(2)">
+                <div class="tour-radio"></div>
+                <div class="tour-label">
+                  <div class="tour-name">Dấu Ấn Đài Loan: Đài Bắc – Đài Trung – Cao Hùng</div>
+                  <button type="button" class="tour-detail-link" onclick="viewDetail(event, 2)">Xem chi tiết chương trình ›</button>
+                </div>
+              </li>
+            </ul>
+
+            <p class="privacy-note">
+              MerapLion ghi nhận thông tin khảo sát của Quý Khách Hàng &amp; sẽ thông báo Chương trình trả thưởng Loyalty 2026 trong thời gian sớm nhất.
+            </p>
+
+            <div>
+              <button class="btn-primary" type="submit">GỬI THÔNG TIN</button>
+              <a href="https://zalo.me/3074930777790996566" target="_blank" rel="noopener" class="link-cskh">LIÊN HỆ CSKH</a>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div><!-- /screen-form -->
+
+    <!-- ── SCREEN: TOUR DETAIL ── -->
+    <div id="screen-detail" class="screen">
+
+      <div class="detail-header">
+        <button class="detail-back-btn" type="button" onclick="backToForm()">
+          <svg width="10" height="17" viewBox="0 0 10 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 1L1.5 8.5L9 16" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="detail-title-wrap">
+          <div class="detail-title-label">Chi tiết</div>
+          <div class="detail-title-text">Chương trình tour</div>
+        </div>
+      </div>
+
+      <div class="detail-card">
+        <img class="detail-tour-img" id="detail-img" src="" alt="" onclick="openLightbox(this)">
+        <div class="detail-body">
+          <div class="detail-option-row">
+            <div class="detail-radio"></div>
+            <div class="detail-option-label" id="detail-tour-name"></div>
+          </div>
+          <button class="btn-choose-tour" type="button" id="btn-choose-tour" onclick="chooseTourFromDetail()">
+            CHỌN TOUR NÀY
+          </button>
+          <button class="btn-other-tours" type="button" onclick="backToForm()">XEM TOUR KHÁC</button>
+        </div>
+      </div>
+
+    </div><!-- /screen-detail -->
+
+    <!-- ── SCREEN: THANK YOU ── -->
+    <div id="screen-thank" class="screen">
+      <div class="card">
+        <div class="thank-card">
+          <div class="thank-img-wrap">
+            <img src="image/Thank.png" alt="Thank you">
+          </div>
+          <p class="thank-note">
+            MerapLion ghi nhận thông tin khảo sát của Quý Khách Hàng &amp; sẽ thông báo Chương trình trả thưởng Loyalty 2026 trong thời gian sớm nhất.
+          </p>
+          <p class="thank-sign">Trân trọng,<br>MerapLion.</p>
+          <a class="btn-contact" href="https://zalo.me/3074930777790996566" target="_blank" rel="noopener">LIÊN HỆ CSKH</a>
+        </div>
+      </div>
+    </div><!-- /screen-thank -->
+
+  </main>
+
+  <footer class="footer" id="main-footer"></footer>
+
+</div>
+</div><!-- /page-wrapper -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CUSTOMER DATA (from danh-sach-khach-hang.xlsx)
+═══════════════════════════════════════════ */
+var CUSTOMER_DATA = {
+  "Bạc Liêu": ["NT Tuyết Thảo 1 - Bạc Liêu - Bạc Liêu"],
+  "Bắc Giang": ["CT CP TM DP Ngọc Đông - Bắc Giang - Bắc Giang"],
+  "Bắc Ninh": ["QT Thu Phương 5 - Yên Phong - Bắc Ninh"],
+  "Bến Tre": ["NT Thống Nhất - Bến Tre - Bến Tre"],
+  "Bình Dương": [
+    "CT TNHH DP Mai My Châu (NT My Châu - Cũ) - Thuận An - Bình Dương",
+    "NT Huy Mai - Phú Giáo - Bình Dương"
+  ],
+  "Bình Định": ["CT TNHH DP & TTBYT Thích 24h - Phù Cát - Bình Định"],
+  "Bình Phước": ["NT Đăng Khoa - Phú Riềng - Bình Phước"],
+  "Bình Thuận": ["NT Trường Giang - Phan Thiết - Bình Thuận"],
+  "Cà Mau": ["CT DP Hồng Đào - TP Cà Mau - Cà Mau"],
+  "Đắk Lắk": [
+    "NT Tân Thái Bình - Buôn Ma Thuột - Đắk Lắk",
+    "CT DP Hòa Bình (NT Hòa Bình 18 cũ) - TP Buôn Ma Thuột - Đăk Lăk"
+  ],
+  "Hà Nam": ["NT Hiền Lê - Phủ Lý - Hà Nam"],
+  "Hải Dương": ["QT Hiếu Hiền - Cẩm Giàng - Hải Dương"],
+  "Hòa Bình": ["NT Nga Cách - Hòa Bình - Hòa Bình"],
+  "Long An": ["NT Bác Ái - Bến Lức - Long An"],
+  "Nam Định": ["NT CT TNHH Hưng Bình Hường - Nam Định - Nam Định"],
+  "Nghệ An": ["NT HT Pharmacy - Yên Thành - Nghệ An"],
+  "Ninh Bình": ["CT TNHH DP Sơn Tùng - Tam Điệp - Ninh Bình"],
+  "Phú Thọ": [
+    "Công ty CP Dược Phú Thọ - Việt Trì - Phú Thọ",
+    "NT Phú Hưng Phú Thọ (Trước là Việt Mông Cổ) - Việt Trì - Phú Thọ"
+  ],
+  "Quảng Ngãi": ["CT TNHH Châu Dũng Loan (NT Dũng Loan cũ) - Quảng Ngãi"],
+  "Sóc Trăng": ["NT Anh Tuấn 1 - Sóc Trăng - Sóc Trăng"],
+  "Thái Nguyên": ["NT Thắng Hương - Phổ Yên - Thái Nguyên"],
+  "Thanh Hóa": [
+    "NT Nhân Dân 8 - Bỉm Sơn - Thanh Hóa",
+    "NT An Đức - Thanh Hóa - Thanh Hóa"
+  ],
+  "Thành Phố Huế": ["CT CP TM DP Mạnh Tý - Việt Mỹ - TP Huế"],
+  "Thành phố Cần Thơ": ["NT Bảo An 2 - Ô Môn - Cần Thơ"],
+  "Thành phố Đà Nẵng": ["NT ABC+ - Ngũ Hành Sơn - Đà Nẵng"],
+  "Thành phố Đồng Nai": ["CTY TNHH NT Mai Trâm - Long khánh - Đồng Nai"],
+  "Thành phố Hà Nội": [
+    "QT Hatamedic Phú Xuyên số 26 - Phú Xuyên - Hà Nội",
+    "NT Đức Lan số 5 - Gia Lâm - Hà Nội",
+    "NT Số 5 Long Tâm 2 - Hai Bà Trưng - Hà Nội",
+    "NT Đức Minh 6 - Hai Bà Trưng - Hà Nội",
+    "NT Minh Thủy (Tam Khương) - Đống Đa - Hà Nội",
+    "NT Hồng Vân - Ứng Hòa - Hà Nội",
+    "NT Như Quỳnh - Thạch Thất - Hà Nội",
+    "NT Y Dược Hà Nội HL- Hà Đông - Hà Nội",
+    "NT Phương Chính - Hai Bà Trưng - Hà Nội"
+  ],
+  "Thành phố Hồ Chí Minh": [
+    "Công Ty Cổ Phần Gonsa - Quận 8 - HCM",
+    "NT Hưng Thịnh 2 - Bình Tân - HCM",
+    "NT Vũ Tùng - Quận 5 - HCM",
+    "NT Thanh Hải 2 - Tân Bình - HCM",
+    "NT Nhân Tâm - Quận 7 - HCM"
+  ],
+  "Tiền Giang": [
+    "Công Ty TNHH Nhất Ngân - Mỹ Tho - Tiền Giang",
+    "NT Cẩm Ân Số 5 - Cai Lậy - Tiền Giang"
+  ],
+  "Vĩnh Long": ["NT Khải Hoàn P2 -Vĩnh Long - Vĩnh Long"],
+  "Vĩnh Phúc": [
+    "Công ty TNHH dược phẩm y tế Minh Phương - Bình Xuyên - Vĩnh Phúc",
+    "NT Thái Dương 8 ( NT Vinphaco số 09 cũ) - Vĩnh Yên - Vĩnh Phúc",
+    "NT Hải Phương - Phúc Yên - Vĩnh Phúc"
+  ]
+};
+
+/* ═══════════════════════════════════════════
+   TOUR DATA
+═══════════════════════════════════════════ */
+var TOURS = [
+  {
+    name: 'Tour Hàn Quốc: Trải Nghiệm Trọn Vẹn Busan',
+    image: 'image/Busan-1.jpg'
+  },
+  {
+    name: 'Hành Trình Tinh Hoa Hong Kong - Chu Hải - Thâm Quyến - Quảng Châu',
+    image: 'image/HongKong-2.jpg'
+  },
+  {
+    name: 'Dấu Ấn Đài Loan: Đài Bắc – Đài Trung – Cao Hùng',
+    image: 'image/DaiLoan-3.jpg'
+  }
+];
+
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+var selectedTour = null;
+var viewingDetail = null;
+var nextTourTimer = null;
+
+/* ═══════════════════════════════════════════
+   PRELOAD TOUR IMAGES
+═══════════════════════════════════════════ */
+(function preloadTourImages() {
+  TOURS.forEach(function(tour) {
+    var img = new Image();
+    img.src = tour.image;
+  });
+})();
+
+/* ═══════════════════════════════════════════
+   INIT DROPDOWNS
+═══════════════════════════════════════════ */
+(function initDropdowns() {
+  var provinceSelect = document.getElementById('f-province');
+  var provinces = Object.keys(CUSTOMER_DATA).sort(function(a, b) {
+    return a.localeCompare(b, 'vi');
+  });
+  provinces.forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    provinceSelect.appendChild(opt);
+  });
+})();
+
+function onProvinceChange() {
+  var province = document.getElementById('f-province').value;
+  var pharmacySelect = document.getElementById('f-pharmacy');
+  pharmacySelect.innerHTML = '<option value="">Chọn nhà thuốc</option>';
+  pharmacySelect.classList.remove('input-error');
+  document.getElementById('err-pharmacy').style.display = 'none';
+
+  if (!province) return;
+
+  var pharmacies = CUSTOMER_DATA[province] || [];
+  pharmacies.forEach(function(name) {
+    var opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    pharmacySelect.appendChild(opt);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   TOUR SELECTION
+═══════════════════════════════════════════ */
+function selectTour(index) {
+  selectedTour = index;
+  document.querySelectorAll('.tour-option').forEach(function(el, i) {
+    el.classList.toggle('selected', i === index);
+  });
+}
+
+function viewDetail(event, index) {
+  event.stopPropagation();
+  // Cancel any pending nextTourDetail timeout
+  if (nextTourTimer) { clearTimeout(nextTourTimer); nextTourTimer = null; }
+  viewingDetail = index;
+  var tour = TOURS[index];
+  // Clear lingering animation classes
+  var card = document.querySelector('.detail-card');
+  card.classList.remove('slide-out-left', 'slide-in-right');
+  document.getElementById('detail-img').src = tour.image;
+  document.getElementById('detail-img').alt = tour.name;
+  document.getElementById('detail-tour-name').textContent = tour.name;
+  showScreen('screen-detail');
+  // Hide header/title/footer for detail screen
+  document.getElementById('main-header').style.display = 'none';
+  document.getElementById('main-title').style.display = 'none';
+  document.getElementById('main-footer').style.display = 'none';
+  // Hide slideshow, show solid bg
+  document.querySelector('.bg-slideshow').style.visibility = 'hidden';
+}
+
+function chooseTourFromDetail() {
+  selectTour(viewingDetail);
+  backToForm();
+}
+
+function nextTourDetail() {
+  var card = document.querySelector('.detail-card');
+  card.classList.add('slide-out-left');
+  nextTourTimer = setTimeout(function() {
+    nextTourTimer = null;
+    viewingDetail = (viewingDetail + 1) % TOURS.length;
+    var tour = TOURS[viewingDetail];
+    document.getElementById('detail-img').src = tour.image;
+    document.getElementById('detail-img').alt = tour.name;
+    document.getElementById('detail-tour-name').textContent = tour.name;
+    card.classList.remove('slide-out-left');
+    card.classList.add('slide-in-right');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    card.addEventListener('animationend', function handler() {
+      card.classList.remove('slide-in-right');
+      card.removeEventListener('animationend', handler);
+    });
+  }, 260);
+}
+
+function backToForm() {
+  document.getElementById('main-header').style.display = '';
+  document.getElementById('main-title').style.display = '';
+  document.getElementById('main-footer').style.display = '';
+  // Restore slideshow
+  document.querySelector('.bg-slideshow').style.visibility = '';
+  showScreen('screen-form');
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN MANAGEMENT
+═══════════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(el) {
+    el.classList.remove('active');
+  });
+  var target = document.getElementById(id);
+  if (target) {
+    target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+/* ═══════════════════════════════════════════
+   FORM SUBMIT
+═══════════════════════════════════════════ */
+function submitSurvey(e) {
+  e.preventDefault();
+
+  var province = document.getElementById('f-province').value.trim();
+  var pharmacy = document.getElementById('f-pharmacy').value.trim();
+
+  // Reset errors
+  document.getElementById('f-province').classList.remove('input-error');
+  document.getElementById('f-pharmacy').classList.remove('input-error');
+  document.getElementById('err-province').style.display = 'none';
+  document.getElementById('err-pharmacy').style.display = 'none';
+
+  var valid = true;
+
+  if (!province) {
+    document.getElementById('f-province').classList.add('input-error');
+    document.getElementById('err-province').style.display = 'block';
+    valid = false;
+  }
+  if (!pharmacy) {
+    document.getElementById('f-pharmacy').classList.add('input-error');
+    document.getElementById('err-pharmacy').style.display = 'block';
+    valid = false;
+  }
+  if (selectedTour === null) {
+    showToast('Vui lòng chọn một tour du lịch.');
+    valid = false;
+  }
+
+  if (!valid) return;
+
+  var tourName = TOURS[selectedTour].name;
+
+  // Submit to Google Sheets
+  var SHEET_URL = 'https://script.google.com/macros/s/AKfycbxHIv1Lhv9UZweqm48Ssrr2GTB_AoUtS--QbCYBY111hRKeC2sfDnxCImAVsd18kW8/exec';
+  fetch(SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'loyalty2026',
+      province: province,
+      pharmacy: pharmacy,
+      tour: tourName,
+      timestamp: new Date().toISOString()
+    })
+  }).catch(function() {});
+
+  showScreen('screen-thank');
+}
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+var toastTimer = null;
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.classList.remove('show'); }, 2800);
+}
+
+/* ═══════════════════════════════════════════
+   LIGHTBOX
+═══════════════════════════════════════════ */
+function openLightbox(imgEl) {
+  document.getElementById('lightbox-img').src = imgEl.src;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ═══════════════════════════════════════════
+   BACKGROUND SLIDESHOW
+═══════════════════════════════════════════ */
+(function() {
+  var slides = document.querySelectorAll('.bg-slide');
+  var current = 0;
+
+  function nextSlide() {
+    slides[current].classList.remove('active');
+    current = (current + 1) % slides.length;
+    slides[current].classList.add('active');
+  }
+
+  setInterval(nextSlide, 4500);
+})();
+</script>
+
+<!-- Lightbox -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+</body>
+</html>
