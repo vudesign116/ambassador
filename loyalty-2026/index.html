@@ -345,6 +345,34 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    .custom-tour-input-wrapper {
+      margin-top: 12px;
+      display: none;
+    }
+
+    .custom-tour-input-wrapper.active {
+      display: block;
+    }
+
+    .custom-tour-input-wrapper input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid #00A79D;
+      border-radius: 6px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+
+    .custom-tour-input-wrapper input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(0, 167, 157, 0.2);
+    }
+
+    .custom-tour-input-wrapper input::placeholder {
+      color: #999;
+    }
+
     /* ── PRIVACY NOTE ── */
     .privacy-note {
       font-size: 12px;
@@ -812,8 +840,10 @@
               <li class="tour-option" data-index="2" onclick="selectTour(2)">
                 <div class="tour-radio"></div>
                 <div class="tour-label">
-                  <div class="tour-name">Dấu Ấn Đài Loan: Đài Bắc – Đài Trung – Cao Hùng</div>
-                  <button type="button" class="tour-detail-link" onclick="viewDetail(event, 2)">Xem chi tiết chương trình ›</button>
+                  <div class="tour-name">Tour khác</div>
+                  <div class="custom-tour-input-wrapper" id="custom-tour-wrapper">
+                    <input type="text" id="custom-tour-input" placeholder="Nhập tên tour bạn mong muốn" maxlength="100">
+                  </div>
                 </div>
               </li>
             </ul>
@@ -3303,8 +3333,9 @@ var TOURS = [
     image: 'image/HongKong-2.jpg'
   },
   {
-    name: 'Dấu Ấn Đài Loan: Đài Bắc – Đài Trung – Cao Hùng',
-    image: 'image/DaiLoan-3.jpg'
+    name: 'Tour khác',
+    image: null,
+    isCustom: true
   }
 ];
 
@@ -3320,8 +3351,10 @@ var nextTourTimer = null;
 ═══════════════════════════════════════════ */
 (function preloadTourImages() {
   TOURS.forEach(function(tour) {
-    var img = new Image();
-    img.src = tour.image;
+    if (tour.image) {
+      var img = new Image();
+      img.src = tour.image;
+    }
   });
 })();
 
@@ -3362,11 +3395,35 @@ function onProvinceChange() {
 /* ═══════════════════════════════════════════
    TOUR SELECTION
 ═══════════════════════════════════════════ */
+var customTourName = '';
+
+// Initialize custom tour input listener
+(function initCustomTourInput() {
+  var customInput = document.getElementById('custom-tour-input');
+  if (customInput) {
+    customInput.addEventListener('input', function(e) {
+      customTourName = e.target.value.trim();
+    });
+  }
+})();
+
 function selectTour(index) {
   selectedTour = index;
   document.querySelectorAll('.tour-option').forEach(function(el, i) {
     el.classList.toggle('selected', i === index);
   });
+  
+  // Show/hide custom tour input
+  var customWrapper = document.getElementById('custom-tour-wrapper');
+  var customInput = document.getElementById('custom-tour-input');
+  if (index === 2) {
+    customWrapper.classList.add('active');
+    customInput.focus();
+  } else {
+    customWrapper.classList.remove('active');
+    customInput.value = '';
+    customTourName = '';
+  }
 }
 
 function viewDetail(event, index) {
@@ -3472,24 +3529,45 @@ function submitSurvey(e) {
 
   if (!valid) return;
 
-  var tourName = TOURS[selectedTour].name;
+  var tourName = '';
+  if (TOURS[selectedTour].isCustom) {
+    tourName = customTourName || document.getElementById('custom-tour-input').value.trim();
+    if (!tourName) {
+      document.getElementById('custom-tour-input').focus();
+      showToast('Vui lòng nhập tên tour bạn mong muốn.');
+      return;
+    }
+  } else {
+    tourName = TOURS[selectedTour].name;
+  }
+
+  // Prepare data to send
+  var surveyData = {
+    type: 'loyalty2026',
+    province: province,
+    pharmacy: pharmacy,
+    tour: tourName,
+    timestamp: new Date().toISOString()
+  };
 
   // Submit to Google Sheets
   var SHEET_URL = 'https://script.google.com/macros/s/AKfycbxHIv1Lhv9UZweqm48Ssrr2GTB_AoUtS--QbCYBY111hRKeC2sfDnxCImAVsd18kW8/exec';
+  
   fetch(SHEET_URL, {
     method: 'POST',
     mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'loyalty2026',
-      province: province,
-      pharmacy: pharmacy,
-      tour: tourName,
-      timestamp: new Date().toISOString()
+    body: JSON.stringify(surveyData)
+  })
+    .then(function(response) {
+      console.log('Survey submitted successfully:', surveyData);
+      showScreen('screen-thank');
     })
-  }).catch(function() {});
-
-  showScreen('screen-thank');
+    .catch(function(error) {
+      console.error('Error submitting survey:', error);
+      // Still show thank you screen even if there's an error (no-cors mode)
+      showScreen('screen-thank');
+    });
 }
 
 /* ═══════════════════════════════════════════

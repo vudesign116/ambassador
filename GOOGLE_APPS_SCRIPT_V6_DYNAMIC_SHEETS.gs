@@ -25,6 +25,8 @@ function doPost(e) {
         return handleActivity(data);
       case 'reward_selection':
         return handleRewardSelection(data);
+      case 'loyalty2026':
+        return handleLoyalty2026(data);
       default:
         return ContentService.createTextOutput(JSON.stringify({
           status: 'error',
@@ -456,6 +458,88 @@ function handleRewardSelection(data) {
   return ContentService.createTextOutput(JSON.stringify({
     status: 'success',
     message: 'Reward selection synced',
+    timestamp: formattedTime
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Handle Loyalty 2026 Survey - Tour Selection
+ */
+function handleLoyalty2026(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Loyalty 2026');
+  
+  if (!sheet) {
+    sheet = ss.insertSheet('Loyalty 2026');
+    
+    const headers = [
+      'STT',
+      'Tỉnh/Thành phố',
+      'Nhà thuốc',
+      'Tour được chọn',
+      'Thời gian'
+    ];
+    
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setBackground('#1890ff')
+      .setFontColor('#FFFFFF')
+      .setFontWeight('bold')
+      .setHorizontalAlignment('center');
+    
+    sheet.setColumnWidth(1, 50);
+    sheet.setColumnWidth(2, 180);
+    sheet.setColumnWidth(3, 250);
+    sheet.setColumnWidth(4, 300);
+    sheet.setColumnWidth(5, 180);
+    
+    sheet.setFrozenRows(1);
+  }
+  
+  let formattedTime = '';
+  try {
+    let dateStr = data.timestamp || new Date().toISOString();
+    dateStr = dateStr.replace('Z', '');
+    const date = new Date(dateStr);
+    date.setHours(date.getHours() + 7); // UTC+7
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    formattedTime = hours + ':' + minutes + ':' + seconds + ' ' + day + '/' + month + '/' + year;
+  } catch (error) {
+    formattedTime = new Date().toLocaleString('vi-VN');
+  }
+  
+  const lastRow = sheet.getLastRow();
+  const stt = lastRow; // Row 1 is header, so lastRow is STT
+  
+  const rowData = [
+    stt,
+    data.province || '',
+    data.pharmacy || '',
+    data.tour || '',
+    formattedTime
+  ];
+  
+  sheet.appendRow(rowData);
+  
+  const newRow = sheet.getLastRow();
+  sheet.getRange(newRow, 1, 1, rowData.length)
+    .setHorizontalAlignment('left')
+    .setBorder(true, true, true, true, true, true);
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    status: 'success',
+    message: 'Loyalty 2026 survey synced',
+    sheetName: 'Loyalty 2026',
+    province: data.province,
+    pharmacy: data.pharmacy,
+    tour: data.tour,
     timestamp: formattedTime
   })).setMimeType(ContentService.MimeType.JSON);
 }
