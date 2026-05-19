@@ -62,6 +62,12 @@ fi
 echo -e "${GREEN}✅ Build completed successfully${NC}"
 echo ""
 
+# Copy static pages into build
+echo "📁 Copying static pages into build..."
+cp -r loyalty-2026 build/
+echo -e "${GREEN}✅ Static pages copied${NC}"
+echo ""
+
 # Check build size
 BUILD_SIZE=$(du -sh build | cut -f1)
 echo "📊 Build size: $BUILD_SIZE"
@@ -69,7 +75,7 @@ echo ""
 
 # Deploy to Firebase
 echo "🔥 Deploying to Firebase Hosting..."
-firebase deploy --only hosting
+GOOGLE_APPLICATION_CREDENTIALS="./firebase-service-account.json" npx -y firebase-tools deploy --only hosting --project ambassador-7849e
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Deployment failed!${NC}"
